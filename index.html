@@ -1,2368 +1,588 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Slotday — 하루 3칸 실행 트리거</title>
-  
-  <!-- Fonts -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  
-  <!-- Lucide Icons -->
-  <script src="https://unpkg.com/lucide@latest"></script>
-  
-  <!-- Canvas Confetti -->
-  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-
-  <style>
-    /* Reset & CSS variables */
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      -webkit-tap-highlight-color: transparent;
-    }
-    
-    :root {
-      --bg-dark: #070b15;
-      --bg-light: #0d1527;
-      --card-bg: rgba(17, 24, 39, 0.7);
-      --card-border: rgba(99, 102, 241, 0.12);
-      --card-border-active: rgba(99, 102, 241, 0.4);
-      --text-main: #f3f4f6;
-      --text-muted: #9ca3af;
-      --text-dark: #4b5563;
-      
-      --accent: #6366f1;
-      --accent-glow: rgba(99, 102, 241, 0.3);
-      --success: #10b981;
-      --success-glow: rgba(16, 185, 129, 0.2);
-      --warning: #f59e0b;
-      --danger: #ef4444;
-      
-      --shadow-indigo: 0 8px 30px rgba(99, 102, 241, 0.15);
-      --transition-speed: 0.3s;
-    }
-
-    body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background: radial-gradient(circle at 50% 0%, var(--bg-light) 0%, var(--bg-dark) 100%);
-      color: var(--text-main);
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      overflow-x: hidden;
-    }
-
-    /* Layout Wrapper (Mobile Mockup) */
-    .app-container {
-      width: 100%;
-      max-width: 480px;
-      height: 100vh;
-      min-height: 600px;
-      background: rgba(10, 14, 26, 0.85);
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      display: flex;
-      flex-direction: column;
-      position: relative;
-      overflow: hidden;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-    }
-    
-    @media (min-width: 481px) {
-      .app-container {
-        height: 850px;
-        border-radius: 40px;
-        border: 2px solid rgba(99, 102, 241, 0.15);
-      }
-    }
-
-    /* Screen Panels */
-    .view-panel {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      overflow-y: auto;
-      padding: 24px 20px 90px 20px;
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      opacity: 0;
-      transform: translateY(20px);
-      pointer-events: none;
-      transition: opacity var(--transition-speed) ease, transform var(--transition-speed) ease;
-    }
-
-    .view-panel.active {
-      opacity: 1;
-      transform: translateY(0);
-      pointer-events: auto;
-      position: relative;
-    }
-
-    /* Scrollbar Style */
-    .view-panel::-webkit-scrollbar {
-      width: 4px;
-    }
-    .view-panel::-webkit-scrollbar-track {
-      background: transparent;
-    }
-    .view-panel::-webkit-scrollbar-thumb {
-      background: rgba(99, 102, 241, 0.3);
-      border-radius: 2px;
-    }
-
-    /* Typography & Headers */
-    h1, h2, h3, h4 {
-      font-family: 'Outfit', sans-serif;
-      font-weight: 700;
-    }
-
-    .screen-header {
-      margin-bottom: 24px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-
-    .screen-title {
-      font-size: 24px;
-      background: linear-gradient(to right, #ffffff, #a5b4fc);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-    }
-
-    .screen-subtitle {
-      font-size: 14px;
-      color: var(--text-muted);
-      margin-top: 4px;
-    }
-
-    /* Bottom Navigation Bar */
-    .bottom-nav {
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      width: 100%;
-      height: 72px;
-      background: rgba(10, 14, 26, 0.85);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border-top: 1px solid rgba(255, 255, 255, 0.05);
-      display: flex;
-      justify-content: space-around;
-      align-items: center;
-      z-index: 10;
-      padding-bottom: env(safe-area-inset-bottom, 0px);
-    }
-
-    .nav-item {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      color: var(--text-muted);
-      cursor: pointer;
-      font-size: 11px;
-      font-weight: 500;
-      transition: color 0.2s ease;
-      width: 60px;
-      background: none;
-      border: none;
-      outline: none;
-    }
-
-    .nav-item svg {
-      width: 20px;
-      height: 20px;
-      margin-bottom: 5px;
-      transition: transform 0.2s ease;
-    }
-
-    .nav-item:hover svg {
-      transform: translateY(-2px);
-    }
-
-    .nav-item.active {
-      color: var(--accent);
-    }
-    
-    .nav-item.active svg {
-      stroke: var(--accent);
-      filter: drop-shadow(0 0 6px var(--accent-glow));
-    }
-
-    /* Glassmorphic Cards */
-    .glass-card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border-radius: 20px;
-      padding: 20px;
-      margin-bottom: 16px;
-      position: relative;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    .glass-card:hover {
-      border-color: rgba(99, 102, 241, 0.25);
-      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
-    }
-
-    /* Home view specific elements */
-    .date-display {
-      font-size: 14px;
-      font-weight: 600;
-      color: var(--accent);
-      letter-spacing: 0.5px;
-    }
-
-    .counter-display {
-      font-size: 14px;
-      color: var(--text-muted);
-      font-weight: 500;
-    }
-
-    .counter-number {
-      color: var(--success);
-      font-weight: 700;
-    }
-
-    /* Empty state */
-    .empty-state {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 60px 20px;
-      flex: 1;
-    }
-
-    .empty-icon-wrapper {
-      width: 80px;
-      height: 80px;
-      border-radius: 50%;
-      background: rgba(99, 102, 241, 0.1);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 24px;
-      border: 1px dashed rgba(99, 102, 241, 0.3);
-      animation: pulse-ring 2s infinite;
-    }
-
-    .empty-icon-wrapper svg {
-      width: 36px;
-      height: 36px;
-      color: var(--accent);
-    }
-
-    .empty-title {
-      font-size: 20px;
-      margin-bottom: 10px;
-      color: #fff;
-    }
-
-    .empty-description {
-      font-size: 14px;
-      color: var(--text-muted);
-      line-height: 1.6;
-      margin-bottom: 30px;
-      max-width: 280px;
-    }
-
-    /* 3-Slot Task Card List */
-    .slot-list {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .slot-card {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border-radius: 20px;
-      padding: 18px 20px;
-      position: relative;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    .slot-card.active-slot {
-      border-color: var(--card-border-active);
-      box-shadow: 0 0 20px rgba(99, 102, 241, 0.15);
-    }
-
-    .slot-card.active-slot::after {
-      content: '';
-      position: absolute;
-      top: -1px;
-      left: -1px;
-      right: -1px;
-      bottom: -1px;
-      border-radius: 20px;
-      background: linear-gradient(135deg, rgba(99, 102, 241, 0.4), transparent, rgba(99, 102, 241, 0.1));
-      pointer-events: none;
-      z-index: -1;
-    }
-
-    .slot-badge {
-      font-size: 10px;
-      font-weight: 700;
-      padding: 4px 8px;
-      border-radius: 8px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      background: rgba(255, 255, 255, 0.06);
-      color: var(--text-muted);
-      flex-shrink: 0;
-      width: 50px;
-      text-align: center;
-    }
-
-    .slot-card.active-slot .slot-badge {
-      background: var(--accent);
-      color: #fff;
-      box-shadow: 0 2px 10px var(--accent-glow);
-    }
-
-    .slot-content {
-      flex: 1;
-      font-size: 15px;
-      font-weight: 500;
-      color: var(--text-main);
-      transition: all 0.25s ease;
-      word-break: break-all;
-    }
-
-    .slot-card.completed .slot-content {
-      color: var(--text-dark);
-      text-decoration: line-through;
-      text-decoration-color: var(--accent);
-      text-decoration-thickness: 2px;
-    }
-
-    .slot-check-btn {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      border: 2px solid rgba(255, 255, 255, 0.15);
-      background: transparent;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s ease;
-      flex-shrink: 0;
-      outline: none;
-    }
-
-    .slot-check-btn:hover {
-      border-color: var(--accent);
-      background: rgba(99, 102, 241, 0.1);
-    }
-
-    .slot-card.completed .slot-check-btn {
-      border-color: var(--success);
-      background: var(--success);
-    }
-
-    .slot-check-btn svg {
-      width: 14px;
-      height: 14px;
-      stroke: #fff;
-      stroke-width: 3px;
-      opacity: 0;
-      transform: scale(0.5);
-      transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    }
-
-    .slot-card.completed .slot-check-btn svg {
-      opacity: 1;
-      transform: scale(1);
-    }
-    
-    /* Active timing indicator dot */
-    .active-indicator {
-      position: absolute;
-      top: 10px;
-      right: 10px;
-      display: flex;
-      align-items: center;
-      gap: 5px;
-      font-size: 9px;
-      font-weight: 700;
-      color: var(--accent);
-      animation: pulse-text 1.5s infinite alternate;
-    }
-
-    .active-indicator::before {
-      content: '';
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: var(--accent);
-      box-shadow: 0 0 8px var(--accent);
-    }
-
-    /* Floating Action Button (FAB) */
-    .fab-btn {
-      position: absolute;
-      bottom: 90px;
-      right: 20px;
-      width: 56px;
-      height: 56px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, var(--accent) 0%, #4f46e5 100%);
-      border: none;
-      box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4);
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 5;
-      outline: none;
-      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-    }
-
-    .fab-btn:hover {
-      transform: translateY(-4px) rotate(90deg);
-      box-shadow: 0 12px 30px rgba(99, 102, 241, 0.6);
-    }
-
-    .fab-btn svg {
-      width: 24px;
-      height: 24px;
-      stroke: #fff;
-    }
-
-    /* Standard Button styling */
-    .btn {
-      background: linear-gradient(135deg, var(--accent) 0%, #4f46e5 100%);
-      color: #fff;
-      border: none;
-      padding: 14px 28px;
-      border-radius: 14px;
-      font-size: 15px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      outline: none;
-      box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
-    }
-
-    .btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(99, 102, 241, 0.45);
-    }
-
-    .btn:active {
-      transform: translateY(0);
-    }
-    
-    .btn-secondary {
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      box-shadow: none;
-    }
-    
-    .btn-secondary:hover {
-      background: rgba(255, 255, 255, 0.12);
-      box-shadow: none;
-    }
-
-    /* Form Fields */
-    .form-group {
-      margin-bottom: 20px;
-    }
-
-    .form-label {
-      display: block;
-      font-size: 13px;
-      font-weight: 600;
-      color: var(--accent);
-      margin-bottom: 8px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .input-wrapper {
-      position: relative;
-    }
-
-    .input-field {
-      width: 100%;
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 14px;
-      padding: 14px 16px;
-      font-size: 15px;
-      color: #fff;
-      outline: none;
-      font-family: inherit;
-      transition: all 0.2s ease;
-    }
-
-    .input-field:focus {
-      background: rgba(99, 102, 241, 0.05);
-      border-color: rgba(99, 102, 241, 0.5);
-      box-shadow: 0 0 10px rgba(99, 102, 241, 0.15);
-    }
-
-    .input-field::placeholder {
-      color: var(--text-dark);
-    }
-    
-    .char-counter {
-      position: absolute;
-      right: 12px;
-      bottom: 8px;
-      font-size: 10px;
-      color: var(--text-dark);
-    }
-
-    /* Yesterday's Hint */
-    .hint-box {
-      background: rgba(245, 158, 11, 0.07);
-      border: 1px dashed rgba(245, 158, 11, 0.25);
-      border-radius: 12px;
-      padding: 12px 14px;
-      margin-bottom: 24px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-
-    .hint-box:hover {
-      background: rgba(245, 158, 11, 0.12);
-      border-color: rgba(245, 158, 11, 0.4);
-    }
-
-    .hint-icon {
-      color: var(--warning);
-      animation: pulse-ring 2.5s infinite;
-      flex-shrink: 0;
-    }
-
-    .hint-text {
-      font-size: 12px;
-      color: #fce3b5;
-      line-height: 1.4;
-      flex: 1;
-    }
-    
-    .hint-tag {
-      font-size: 9px;
-      font-weight: 700;
-      background: rgba(245, 158, 11, 0.2);
-      color: var(--warning);
-      padding: 2px 6px;
-      border-radius: 4px;
-      text-transform: uppercase;
-    }
-
-    /* Save Complete Screen */
-    .complete-view {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      flex: 1;
-      padding: 40px 20px;
-    }
-
-    .moon-animation {
-      position: relative;
-      width: 120px;
-      height: 120px;
-      margin-bottom: 30px;
-    }
-
-    .moon {
-      position: absolute;
-      top: 20px;
-      left: 20px;
-      width: 80px;
-      height: 80px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #ffe066, #f59e0b);
-      box-shadow: 0 0 40px rgba(245, 158, 11, 0.4);
-      animation: float 4s ease-in-out infinite;
-    }
-    
-    .cloud {
-      position: absolute;
-      bottom: 10px;
-      right: 0;
-      width: 70px;
-      height: 24px;
-      background: rgba(255, 255, 255, 0.2);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      border-radius: 12px;
-      animation: drift 6s ease-in-out infinite alternate;
-    }
-
-    .complete-title {
-      font-size: 22px;
-      color: #fff;
-      margin-bottom: 12px;
-      line-height: 1.4;
-    }
-
-    .complete-desc {
-      font-size: 14px;
-      color: var(--text-muted);
-      line-height: 1.6;
-      margin-bottom: 32px;
-      max-width: 260px;
-    }
-
-    .summary-card {
-      width: 100%;
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.05);
-      border-radius: 20px;
-      padding: 18px;
-      text-align: left;
-      margin-bottom: 32px;
-    }
-
-    .summary-title {
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--accent);
-      margin-bottom: 12px;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    .summary-item {
-      display: flex;
-      margin-bottom: 8px;
-      font-size: 13px;
-      line-height: 1.5;
-    }
-
-    .summary-item:last-child {
-      margin-bottom: 0;
-    }
-
-    .summary-badge {
-      width: 45px;
-      color: var(--text-muted);
-      font-weight: 600;
-      flex-shrink: 0;
-    }
-
-    .summary-content {
-      color: var(--text-main);
-      flex: 1;
-    }
-
-    /* All Completed Screen Overlay */
-    .all-complete-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(7, 11, 21, 0.95);
-      z-index: 100;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      text-align: center;
-      padding: 40px;
-      opacity: 0;
-      pointer-events: none;
-      transform: scale(1.1);
-      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
-    }
-
-    .all-complete-overlay.active {
-      opacity: 1;
-      pointer-events: auto;
-      transform: scale(1);
-    }
-
-    .trophy-wrapper {
-      width: 100px;
-      height: 100px;
-      border-radius: 50%;
-      background: rgba(16, 185, 129, 0.1);
-      border: 1px solid rgba(16, 185, 129, 0.3);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin-bottom: 24px;
-      animation: pop-bounce 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
-    }
-
-    .trophy-wrapper svg {
-      width: 48px;
-      height: 48px;
-      color: var(--success);
-      filter: drop-shadow(0 0 10px var(--success-glow));
-    }
-
-    .overlay-title {
-      font-size: 24px;
-      margin-bottom: 12px;
-      color: #fff;
-    }
-
-    .overlay-desc {
-      font-size: 14px;
-      color: var(--text-muted);
-      margin-bottom: 32px;
-      line-height: 1.6;
-      max-width: 250px;
-    }
-
-    /* Toast Warnings */
-    .toast-container {
-      position: absolute;
-      top: 24px;
-      left: 50%;
-      transform: translateX(-50%) translateY(-20px);
-      background: rgba(239, 68, 68, 0.9);
-      border: 1px solid rgba(239, 68, 68, 0.2);
-      backdrop-filter: blur(10px);
-      padding: 12px 20px;
-      border-radius: 12px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      box-shadow: 0 10px 25px rgba(239, 68, 68, 0.3);
-      z-index: 1000;
-      opacity: 0;
-      pointer-events: none;
-      transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-      width: calc(100% - 40px);
-      max-width: 380px;
-    }
-
-    .toast-container.active {
-      opacity: 1;
-      transform: translateX(-50%) translateY(0);
-      pointer-events: auto;
-    }
-
-    .toast-text {
-      font-size: 13px;
-      font-weight: 500;
-      color: #fff;
-    }
-    
-    .toast-icon {
-      color: #fff;
-      flex-shrink: 0;
-    }
-
-    /* History & Chart Components */
-    .history-summary {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-      margin-bottom: 20px;
-    }
-
-    .history-summary-card {
-      background: rgba(255, 255, 255, 0.02);
-      border: 1px solid rgba(255, 255, 255, 0.04);
-      border-radius: 16px;
-      padding: 16px;
-      text-align: center;
-    }
-
-    .history-summary-val {
-      font-size: 24px;
-      font-weight: 700;
-      color: #fff;
-      margin-top: 4px;
-    }
-    
-    .history-summary-val span {
-      font-size: 12px;
-      color: var(--text-muted);
-      font-weight: 400;
-    }
-
-    .chart-container {
-      height: 180px;
-      margin: 16px 0 24px 0;
-      display: flex;
-      align-items: flex-end;
-      justify-content: space-between;
-      padding: 0 10px;
-      position: relative;
-    }
-
-    .chart-y-axis {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      pointer-events: none;
-      z-index: 1;
-    }
-
-    .chart-grid-line {
-      width: 100%;
-      border-bottom: 1px dashed rgba(255, 255, 255, 0.04);
-      position: relative;
-    }
-
-    .chart-grid-label {
-      position: absolute;
-      right: 0;
-      bottom: 2px;
-      font-size: 9px;
-      color: var(--text-dark);
-    }
-
-    .chart-bar-wrapper {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 8px;
-      flex: 1;
-      height: 100%;
-      justify-content: flex-end;
-      z-index: 2;
-    }
-
-    .chart-bar-outer {
-      width: 18px;
-      height: calc(100% - 25px);
-      background: rgba(255, 255, 255, 0.04);
-      border-radius: 10px;
-      display: flex;
-      align-items: flex-end;
-      overflow: hidden;
-      position: relative;
-    }
-
-    .chart-bar-inner {
-      width: 100%;
-      border-radius: 10px;
-      background: linear-gradient(to top, var(--accent), #818cf8);
-      transition: height 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.1);
-      box-shadow: 0 0 10px rgba(99, 102, 241, 0.2);
-    }
-
-    .chart-bar-inner.success-bar {
-      background: linear-gradient(to top, var(--success), #34d399);
-      box-shadow: 0 0 10px rgba(16, 185, 129, 0.2);
-    }
-
-    .chart-label {
-      font-size: 10px;
-      color: var(--text-muted);
-      font-weight: 500;
-    }
-
-    .chart-bar-wrapper:hover .chart-bar-outer {
-      background: rgba(255, 255, 255, 0.08);
-    }
-
-    .chart-bar-tooltip {
-      position: absolute;
-      top: -24px;
-      background: #1e1b4b;
-      border: 1px solid rgba(99, 102, 241, 0.3);
-      padding: 2px 6px;
-      border-radius: 6px;
-      font-size: 9px;
-      color: #fff;
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 0.2s ease;
-    }
-
-    .chart-bar-wrapper:hover .chart-bar-tooltip {
-      opacity: 1;
-    }
-
-    /* Insights Box */
-    .insight-card {
-      background: rgba(99, 102, 241, 0.04);
-      border: 1px solid rgba(99, 102, 241, 0.12);
-      border-radius: 16px;
-      padding: 16px;
-      display: flex;
-      gap: 12px;
-      margin-bottom: 24px;
-    }
-
-    .insight-icon {
-      color: var(--accent);
-      flex-shrink: 0;
-      margin-top: 2px;
-    }
-
-    .insight-body {
-      font-size: 13px;
-      line-height: 1.5;
-    }
-
-    .insight-title {
-      font-weight: 600;
-      color: #fff;
-      margin-bottom: 4px;
-    }
-
-    .insight-text {
-      color: var(--text-muted);
-    }
-
-    /* History List Items */
-    .history-list {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .history-item {
-      background: rgba(255, 255, 255, 0.02);
-      border: 1px solid rgba(255, 255, 255, 0.04);
-      border-radius: 16px;
-      padding: 14px 18px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-
-    .history-item:hover {
-      background: rgba(255, 255, 255, 0.05);
-      border-color: rgba(255, 255, 255, 0.08);
-      transform: translateX(4px);
-    }
-
-    .history-item-left {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .history-item-date {
-      font-size: 14px;
-      font-weight: 600;
-      color: #fff;
-    }
-
-    .history-item-desc {
-      font-size: 12px;
-      color: var(--text-muted);
-    }
-
-    .history-item-right {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .history-item-dots {
-      display: flex;
-      gap: 4px;
-    }
-
-    .history-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: var(--text-dark);
-    }
-
-    .history-dot.completed {
-      background: var(--success);
-      box-shadow: 0 0 6px var(--success-glow);
-    }
-    
-    .history-dot.failed {
-      background: var(--text-dark);
-    }
-
-    /* Back Button Header */
-    .back-header {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin-bottom: 24px;
-    }
-
-    .back-btn {
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      color: #fff;
-      transition: all 0.2s ease;
-      outline: none;
-    }
-
-    .back-btn:hover {
-      background: rgba(255, 255, 255, 0.08);
-      color: var(--accent);
-    }
-
-    /* Detail View list */
-    .detail-card-list {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-      margin-bottom: 24px;
-    }
-
-    .detail-slot-card {
-      display: flex;
-      align-items: center;
-      gap: 16px;
-      background: rgba(255, 255, 255, 0.02);
-      border: 1px solid rgba(255, 255, 255, 0.04);
-      border-radius: 20px;
-      padding: 18px 20px;
-    }
-
-    .detail-slot-card.completed {
-      border-color: rgba(16, 185, 129, 0.15);
-      background: rgba(16, 185, 129, 0.02);
-    }
-
-    .detail-slot-status {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-    }
-
-    .detail-slot-status svg {
-      width: 20px;
-      height: 20px;
-    }
-
-    .detail-slot-status.completed svg {
-      color: var(--success);
-    }
-
-    .detail-slot-status.failed svg {
-      color: var(--text-dark);
-    }
-
-    /* Settings Components */
-    .settings-list {
-      display: flex;
-      flex-direction: column;
-      gap: 16px;
-    }
-
-    .settings-group-title {
-      font-size: 12px;
-      font-weight: 700;
-      color: var(--accent);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-      margin-top: 10px;
-      margin-bottom: 4px;
-    }
-
-    .settings-row {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: rgba(255, 255, 255, 0.02);
-      border: 1px solid rgba(255, 255, 255, 0.04);
-      border-radius: 16px;
-      padding: 16px 20px;
-    }
-
-    .settings-row-left {
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-
-    .settings-label {
-      font-size: 15px;
-      font-weight: 600;
-      color: #fff;
-    }
-
-    .settings-desc {
-      font-size: 11px;
-      color: var(--text-muted);
-    }
-
-    /* Time Picker Styling */
-    .time-picker {
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 10px;
-      color: #fff;
-      font-size: 14px;
-      font-weight: 600;
-      padding: 6px 12px;
-      outline: none;
-      cursor: pointer;
-      font-family: inherit;
-    }
-
-    .time-picker:focus {
-      border-color: var(--accent);
-    }
-
-    /* Toggle Switch */
-    .switch {
-      position: relative;
-      display: inline-block;
-      width: 46px;
-      height: 26px;
-    }
-
-    .switch input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
-
-    .slider {
-      position: absolute;
-      cursor: pointer;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: rgba(255, 255, 255, 0.1);
-      transition: .3s;
-      border-radius: 34px;
-      border: 1px solid rgba(255, 255, 255, 0.05);
-    }
-
-    .slider:before {
-      position: absolute;
-      content: "";
-      height: 18px;
-      width: 18px;
-      left: 3px;
-      bottom: 3px;
-      background-color: #fff;
-      transition: .3s;
-      border-radius: 50%;
-    }
-
-    input:checked + .slider {
-      background-color: var(--accent);
-    }
-
-    input:checked + .slider:before {
-      transform: translateX(20px);
-    }
-
-    /* Reset Dialog Modal */
-    .modal-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.7);
-      backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px);
-      z-index: 200;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 24px;
-      opacity: 0;
-      pointer-events: none;
-      transition: opacity 0.25s ease;
-    }
-
-    .modal-overlay.active {
-      opacity: 1;
-      pointer-events: auto;
-    }
-
-    .modal-box {
-      background: #0d1222;
-      border: 1px solid rgba(239, 68, 68, 0.25);
-      border-radius: 24px;
-      padding: 24px;
-      text-align: center;
-      width: 100%;
-      max-width: 320px;
-      transform: scale(0.9);
-      transition: transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-    }
-
-    .modal-overlay.active .modal-box {
-      transform: scale(1);
-    }
-
-    .modal-icon {
-      width: 50px;
-      height: 50px;
-      border-radius: 50%;
-      background: rgba(239, 68, 68, 0.1);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      margin: 0 auto 16px auto;
-      color: var(--danger);
-    }
-
-    .modal-title {
-      font-size: 18px;
-      color: #fff;
-      margin-bottom: 8px;
-    }
-
-    .modal-desc {
-      font-size: 13px;
-      color: var(--text-muted);
-      line-height: 1.5;
-      margin-bottom: 24px;
-    }
-
-    .modal-actions {
-      display: flex;
-      gap: 10px;
-    }
-
-    .modal-actions button {
-      flex: 1;
-    }
-
-    /* Custom CSS animations */
-    @keyframes pulse-ring {
-      0% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.2); }
-      70% { box-shadow: 0 0 0 10px rgba(99, 102, 241, 0); }
-      100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0); }
-    }
-
-    @keyframes pulse-text {
-      from { opacity: 0.6; }
-      to { opacity: 1; }
-    }
-
-    @keyframes float {
-      0% { transform: translateY(0px); }
-      50% { transform: translateY(-8px); }
-      100% { transform: translateY(0px); }
-    }
-
-    @keyframes drift {
-      from { transform: translateX(-5px); }
-      to { transform: translateX(5px); }
-    }
-
-    @keyframes pop-bounce {
-      0% { transform: scale(0); }
-      70% { transform: scale(1.1); }
-      100% { transform: scale(1); }
-    }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>링크트리 메이커</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@400;600&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+:root{
+  --bg:#F0EEF8;
+  --card:#fff;
+  --border:#E2DEF0;
+  --text:#1A1A2E;
+  --muted:#9A96B0;
+  --accent:#6C63FF;
+  --accent2:#8B85FF;
+  --accent-bg:#F0EEFF;
+  --sans:'Noto Sans KR',sans-serif;
+  --serif:'Noto Serif KR',serif;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;}
+.app{display:flex;min-height:100vh;}
+
+/* LEFT */
+.left{width:420px;flex-shrink:0;background:#fff;border-right:1px solid var(--border);overflow-y:auto;display:flex;flex-direction:column;}
+.left-header{padding:24px 28px 18px;border-bottom:1px solid var(--border);position:sticky;top:0;background:#fff;z-index:10;}
+.left-logo{font-family:var(--serif);font-size:1.25rem;font-weight:600;color:var(--text);margin-bottom:3px;}
+.left-logo span{color:var(--accent);}
+.left-sub{font-size:0.68rem;color:var(--muted);}
+.left-body{padding:22px 28px;display:flex;flex-direction:column;gap:24px;flex:1;}
+
+.form-section-title{font-size:0.6rem;letter-spacing:3px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;display:flex;align-items:center;gap:10px;}
+.form-section-title::after{content:'';flex:1;height:1px;background:var(--border);}
+
+.field{margin-bottom:10px;}
+.field label{display:block;font-size:0.68rem;color:var(--muted);letter-spacing:0.5px;margin-bottom:4px;}
+.field input,.field textarea,.field select{width:100%;background:#F8F7FC;border:1px solid var(--border);border-radius:9px;padding:9px 12px;font-family:var(--sans);font-size:0.82rem;color:var(--text);outline:none;transition:border-color 0.15s;}
+.field input:focus,.field textarea:focus{border-color:var(--accent2);}
+.field textarea{resize:vertical;min-height:58px;line-height:1.5;}
+
+/* 사진 업로드 */
+.photo-upload{border:1.5px dashed var(--border);border-radius:12px;padding:18px;text-align:center;cursor:pointer;transition:all 0.15s;position:relative;overflow:hidden;}
+.photo-upload:hover{border-color:var(--accent2);background:var(--accent-bg);}
+.photo-upload input{position:absolute;inset:0;opacity:0;cursor:pointer;}
+.photo-preview{width:52px;height:52px;border-radius:50%;object-fit:cover;object-position:center top;margin:0 auto 6px;display:none;border:2px solid var(--accent);}
+.photo-icon{font-size:1.6rem;margin-bottom:5px;}
+.photo-text{font-size:0.68rem;color:var(--muted);}
+
+/* 링크 아이템 */
+.link-items{display:flex;flex-direction:column;gap:7px;}
+.link-item-row{background:#F8F7FC;border:1px solid var(--border);border-radius:9px;padding:9px 10px;display:flex;gap:7px;align-items:center;}
+.link-item-row select{width:42px;flex-shrink:0;padding:5px 3px;font-size:0.85rem;background:#fff;border:1px solid var(--border);border-radius:6px;outline:none;cursor:pointer;}
+.link-item-row input{flex:1;background:#fff;padding:6px 9px;font-size:0.76rem;border:1px solid var(--border);border-radius:6px;outline:none;font-family:var(--sans);}
+.link-remove{background:none;border:none;cursor:pointer;color:#CCC;font-size:0.9rem;padding:3px;transition:color 0.15s;flex-shrink:0;}
+.link-remove:hover{color:#F44;}
+.btn-add-link{display:flex;align-items:center;gap:6px;background:none;border:1.5px dashed var(--border);border-radius:9px;padding:8px 14px;font-family:var(--sans);font-size:0.75rem;color:var(--muted);cursor:pointer;width:100%;justify-content:center;transition:all 0.15s;margin-top:3px;}
+.btn-add-link:hover{border-color:var(--accent2);color:var(--accent);}
+
+/* 색상 */
+.color-row{display:flex;gap:8px;flex-wrap:wrap;}
+.color-opt{width:30px;height:30px;border-radius:50%;cursor:pointer;border:2.5px solid transparent;transition:all 0.15s;}
+.color-opt.active{border-color:#333;transform:scale(1.15);}
+
+/* 생성 버튼 */
+.btn-generate{background:var(--accent);color:#fff;border:none;border-radius:12px;padding:13px;font-family:var(--sans);font-size:0.88rem;font-weight:700;cursor:pointer;width:100%;letter-spacing:0.5px;transition:all 0.15s;margin-top:4px;}
+.btn-generate:hover{background:var(--accent2);transform:translateY(-1px);}
+.btn-download{background:#1A1A2E;color:#fff;border:none;border-radius:12px;padding:12px;font-family:var(--sans);font-size:0.82rem;font-weight:500;cursor:pointer;width:100%;letter-spacing:0.5px;transition:background 0.15s;display:none;margin-top:7px;}
+.btn-download:hover{background:#2A2A4E;}
+
+/* RIGHT */
+.right{flex:1;display:flex;align-items:center;justify-content:center;padding:40px;background:var(--bg);position:sticky;top:0;height:100vh;overflow:hidden;}
+
+/* ── PHONE FRAME — 예시 이미지처럼 흰색+진한 둥근 테두리 ── */
+.phone{
+  width:265px;
+  background:#fff;
+  border-radius:46px;
+  padding:10px;
+  border:9px solid #1A1A2E;
+  box-shadow:0 32px 80px rgba(26,26,46,0.22),0 8px 24px rgba(0,0,0,0.12);
+  position:relative;
+  transition:border-color 0.3s;
+}
+/* 노치 */
+.phone-notch{
+  background:#1A1A2E;
+  height:28px;
+  border-radius:20px 20px 0 0;
+  display:flex;align-items:flex-end;justify-content:center;
+  padding-bottom:0;
+  margin:-10px -10px 0;
+}
+.notch-cut{
+  background:#fff;
+  width:130px;height:24px;
+  border-radius:0 0 20px 20px;
+}
+/* 화면 */
+.phone-screen{background:#F5F3FF;border-radius:4px;overflow:hidden;}
+
+/* 상태바 */
+.sbar{background:#F5F3FF;padding:5px 16px 3px;display:flex;align-items:center;justify-content:space-between;}
+.sbar-time{font-size:0.6rem;font-weight:700;color:#1A1A2E;}
+.sbar-icons{display:flex;gap:3px;align-items:center;}
+
+/* 스크롤 */
+.content{max-height:560px;overflow-y:auto;padding-bottom:16px;scrollbar-width:none;}
+.content::-webkit-scrollbar{display:none;}
+
+/* 프로필 */
+.pc-profile{padding:20px 0 14px;display:flex;flex-direction:column;align-items:center;background:#F5F3FF;}
+.pc-avatar{width:72px;height:72px;border-radius:50%;border:3px solid #fff;box-shadow:0 4px 16px rgba(108,99,255,0.2);margin-bottom:10px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#6C63FF,#A78BFF);font-family:var(--serif);font-size:1.5rem;font-weight:600;color:#fff;transition:background 0.3s;}
+.pc-avatar img{width:100%;height:100%;object-fit:cover;object-position:center top;display:none;}
+.pc-name{font-size:1rem;font-weight:700;color:#1A1A2E;margin-bottom:4px;letter-spacing:-0.3px;}
+.pc-bio{font-size:0.68rem;color:#666;line-height:1.55;text-align:center;padding:0 18px;font-weight:300;}
+
+/* 통계 */
+.pc-stats{display:flex;justify-content:center;gap:28px;padding:14px 0 12px;background:#F5F3FF;}
+.pc-stat{text-align:center;}
+.pc-stat-n{font-size:1rem;font-weight:700;color:#1A1A2E;line-height:1;}
+.pc-stat-l{font-size:0.5rem;letter-spacing:1.5px;text-transform:uppercase;color:#AAA;margin-top:2px;}
+
+/* 구분 */
+.pc-div{height:8px;background:#ECEAFA;}
+
+/* 소셜 아이콘 */
+.pc-icons{display:flex;justify-content:center;gap:12px;padding:14px 12px 10px;background:#F5F3FF;}
+.pc-ic{display:flex;flex-direction:column;align-items:center;gap:3px;text-decoration:none;cursor:pointer;}
+.pc-ic-circle{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.15);}
+.pc-ic-circle svg{width:20px;height:20px;}
+.pc-ic-circle img{width:20px;height:20px;object-fit:contain;}
+.pc-ic-label{font-size:0.5rem;color:#AAA;white-space:nowrap;}
+
+/* 링크 카드 */
+.pc-cards{padding:8px 10px 0;display:flex;flex-direction:column;gap:5px;background:#F5F3FF;}
+.pc-card{display:flex;align-items:center;gap:8px;border-radius:12px;padding:10px 12px;text-decoration:none;color:#1A1A2E;box-shadow:0 1px 6px rgba(108,99,255,0.1);transition:transform 0.12s;background:#fff;}
+.pc-card.feat{background:linear-gradient(135deg,#6C63FF,#A78BFF);}
+.pc-card.feat .pc-card-title{color:#fff;}
+.pc-card.feat .pc-card-desc{color:rgba(255,255,255,0.6);}
+.pc-card.feat .pc-card-arr{color:rgba(255,255,255,0.4);}
+.pc-card.feat .pc-card-ico{background:rgba(255,255,255,0.15);}
+.pc-card-ico{width:28px;height:28px;border-radius:8px;background:#F0EEFF;display:flex;align-items:center;justify-content:center;font-size:0.75rem;flex-shrink:0;}
+.pc-card-body{flex:1;min-width:0;}
+.pc-card-title{font-size:0.7rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pc-card-desc{font-size:0.55rem;color:#AAA;margin-top:1px;}
+.pc-card-arr{font-size:0.6rem;color:#DDD;flex-shrink:0;}
+
+@media(max-width:900px){.app{flex-direction:column;}.left{width:100%;}.right{position:static;height:auto;padding:32px 20px 48px;}}
+</style>
 </head>
 <body>
+<div class="app">
 
-  <div class="app-container">
-    
-    <!-- Warning Toast Notification -->
-    <div id="warning-toast" class="toast-container">
-      <i data-lucide="alert-triangle" class="toast-icon"></i>
-      <span id="toast-text" class="toast-text">3칸이 딱 좋아요. 줄여볼까요?</span>
+<!-- LEFT -->
+<div class="left">
+  <div class="left-header">
+    <div class="left-logo">링크<span>트리</span> 메이커</div>
+    <div class="left-sub">정보 입력 → 실시간 미리보기 → HTML 다운로드 → Netlify 배포</div>
+  </div>
+  <div class="left-body">
+
+    <!-- 프로필 -->
+    <div>
+      <div class="form-section-title">프로필</div>
+      <div class="field" style="margin-bottom:14px;">
+        <label>프로필 사진</label>
+        <div class="photo-upload" id="photoUpload">
+          <input type="file" id="photoInput" accept="image/*">
+          <img class="photo-preview" id="photoPreview">
+          <div class="photo-icon" id="photoIcon">📷</div>
+          <div class="photo-text" id="photoText">클릭하여 사진 업로드</div>
+        </div>
+      </div>
+      <div class="field"><label>이름 / 닉네임</label><input type="text" id="inp-name" placeholder="예: @Zia_official"></div>
+      <div class="field"><label>소개</label><textarea id="inp-bio" placeholder="예: Digital Creator & Visual Artist&#10;Inspiring your daily lifestyle."></textarea></div>
     </div>
 
-    <!-- 1. Home / Today Screen -->
-    <div id="view-home" class="view-panel active">
-      <div class="screen-header">
-        <div>
-          <span id="home-date" class="date-display">5월 20일 (수)</span>
-          <h2 class="screen-title">오늘 실행</h2>
-        </div>
-        <div id="home-counter" class="counter-display">
-          <span id="completed-count-badge" class="counter-number">0</span>/3 완료
-        </div>
+    <!-- 통계 -->
+    <div>
+      <div class="form-section-title">통계 숫자 (선택)</div>
+      <div style="display:flex;gap:8px;">
+        <div class="field" style="flex:1;margin-bottom:0;"><label>숫자1</label><input type="text" id="stat1-n" placeholder="0"></div>
+        <div class="field" style="flex:1;margin-bottom:0;"><label>라벨1</label><input type="text" id="stat1-l" placeholder="LINKS"></div>
+        <div class="field" style="flex:1;margin-bottom:0;"><label>숫자2</label><input type="text" id="stat2-n" placeholder="1.2K"></div>
+        <div class="field" style="flex:1;margin-bottom:0;"><label>라벨2</label><input type="text" id="stat2-l" placeholder="FOLLOWERS"></div>
       </div>
-      
-      <!-- Empty State -->
-      <div id="empty-state-view" class="empty-state" style="display: none;">
-        <div class="empty-icon-wrapper">
-          <i data-lucide="feather"></i>
-        </div>
-        <h3 class="empty-title">오늘 뭐 할 거야?</h3>
-        <p class="empty-description">딱 3칸만 채우면 준비 끝.<br>내일 아침 첫 행동을 오늘 밤 결정해두세요.</p>
-        <button class="btn" onclick="navigateTo('plan-input')">
-          <i data-lucide="plus-circle"></i>
-          첫 계획 잡기
-        </button>
-      </div>
-
-      <!-- Slot List view -->
-      <div id="slots-view" class="slot-list" style="display: none;">
-        <!-- Morning Slot -->
-        <div id="slot-morning-card" class="slot-card">
-          <span class="slot-badge">오전</span>
-          <div id="slot-morning-text" class="slot-content">태스크가 없습니다.</div>
-          <button class="slot-check-btn" onclick="toggleTask('morning')" aria-label="오전 완료 체크">
-            <i data-lucide="check"></i>
-          </button>
-          <div id="indicator-morning" class="active-indicator" style="display: none;">진행 중</div>
-        </div>
-
-        <!-- Afternoon Slot -->
-        <div id="slot-afternoon-card" class="slot-card">
-          <span class="slot-badge">오후</span>
-          <div id="slot-afternoon-text" class="slot-content">태스크가 없습니다.</div>
-          <button class="slot-check-btn" onclick="toggleTask('afternoon')" aria-label="오후 완료 체크">
-            <i data-lucide="check"></i>
-          </button>
-          <div id="indicator-afternoon" class="active-indicator" style="display: none;">진행 중</div>
-        </div>
-
-        <!-- Evening Slot -->
-        <div id="slot-evening-card" class="slot-card">
-          <span class="slot-badge">저녁</span>
-          <div id="slot-evening-text" class="slot-content">태스크가 없습니다.</div>
-          <button class="slot-check-btn" onclick="toggleTask('evening')" aria-label="저녁 완료 체크">
-            <i data-lucide="check"></i>
-          </button>
-          <div id="indicator-evening" class="active-indicator" style="display: none;">진행 중</div>
-        </div>
-      </div>
-      
-      <!-- Floating Action Button to Edit -->
-      <button id="edit-fab" class="fab-btn" onclick="navigateTo('plan-input')" aria-label="계획 수정">
-        <i data-lucide="edit-3"></i>
-      </button>
     </div>
 
-    <!-- 2. Planning Input Form -->
-    <div id="view-plan-input" class="view-panel">
-      <div class="back-header">
-        <button class="back-btn" onclick="navigateTo('home')" aria-label="뒤로 가기">
-          <i data-lucide="arrow-left"></i>
-        </button>
-        <div>
-          <h2 class="screen-title" style="font-size: 20px;">내일 계획 세우기</h2>
-          <p class="screen-subtitle">딱 3칸으로 하루를 설계합니다.</p>
-        </div>
-      </div>
-
-      <!-- Yesterday's Hint (displays only if yesterday had an unfinished task) -->
-      <div id="yesterday-hint" class="hint-box" style="display: none;" onclick="useYesterdayHint()">
-        <i data-lucide="history" class="hint-icon"></i>
-        <div class="hint-text">
-          <strong>어제 못 다한 과제</strong>가 있어요.<br>
-          <span id="yesterday-unfinished-text" style="color: var(--text-main);">"..."</span>
-        </div>
-        <span class="hint-tag">복사</span>
-      </div>
-
-      <div class="form-group">
-        <label for="input-morning" class="form-label">오전의 행동 (필수)</label>
-        <div class="input-wrapper">
-          <input type="text" id="input-morning" class="input-field" placeholder="단어 하나도 OK" maxlength="50" oninput="updateCharCounter('morning')">
-          <span id="counter-morning" class="char-counter">0/50</span>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label for="input-afternoon" class="form-label">오후의 행동 (선택)</label>
-        <div class="input-wrapper">
-          <input type="text" id="input-afternoon" class="input-field" placeholder="비워두어도 괜찮아요" maxlength="50" oninput="updateCharCounter('afternoon')">
-          <span id="counter-afternoon" class="char-counter">0/50</span>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label for="input-evening" class="form-label">저녁의 행동 (선택)</label>
-        <div class="input-wrapper">
-          <input type="text" id="input-evening" class="input-field" placeholder="비워두어도 괜찮아요" maxlength="50" oninput="updateCharCounter('evening')">
-          <span id="counter-evening" class="char-counter">0/50</span>
-        </div>
-      </div>
-      
-      <!-- Warning trigger elements simulating 4th task addition attempt -->
-      <div class="form-group" style="margin-top: 10px;">
-        <button class="btn btn-secondary" style="width: 100%; border-style: dashed; padding: 10px;" onclick="triggerFourthSlotWarning()">
-          <i data-lucide="plus"></i> 4번째 칸 추가하기 (시뮬레이션)
-        </button>
-      </div>
-
-      <button class="btn" style="width: 100%; margin-top: 24px;" onclick="savePlan()">
-        <i data-lucide="calendar-check"></i>
-        내일 아침에 이것만 볼게
-      </button>
+    <!-- SNS -->
+    <div>
+      <div class="form-section-title">SNS 아이콘</div>
+      <div class="field"><label>Instagram URL</label><input type="text" id="sns-insta" placeholder="https://instagram.com/..."></div>
+      <div class="field"><label>카카오톡 채널 URL</label><input type="text" id="sns-kakao" placeholder="https://pf.kakao.com/..."></div>
+      <div class="field"><label>YouTube URL</label><input type="text" id="sns-youtube" placeholder="https://youtube.com/..."></div>
+      <div class="field"><label>블로그 URL (네이버/브런치)</label><input type="text" id="sns-blog" placeholder="https://blog.naver.com/..."></div>
+      <div class="field"><label>이메일</label><input type="text" id="sns-email" placeholder="example@email.com"></div>
     </div>
 
-    <!-- 3. Planning Complete Screen -->
-    <div id="view-plan-complete" class="view-panel">
-      <div class="complete-view">
-        <div class="moon-animation">
-          <div class="moon"></div>
-          <div class="cloud"></div>
-        </div>
-        
-        <h2 class="complete-title">내일 아침에<br>이것만 보여드릴게요. 잘 자요.</h2>
-        <p class="complete-desc">지정한 시간이 되면 알림을 보내드릴게요.</p>
-        
-        <div class="summary-card">
-          <h3 class="summary-title">계획 요약</h3>
-          <div class="summary-item">
-            <span class="summary-badge">오전</span>
-            <span id="summary-morning" class="summary-content">-</span>
-          </div>
-          <div class="summary-item">
-            <span class="summary-badge">오후</span>
-            <span id="summary-afternoon" class="summary-content">-</span>
-          </div>
-          <div class="summary-item">
-            <span class="summary-badge">저녁</span>
-            <span id="summary-evening" class="summary-content">-</span>
-          </div>
-        </div>
-        
-        <div style="display: flex; gap: 12px; width: 100%;">
-          <button class="btn btn-secondary" style="flex: 1;" onclick="navigateTo('history')">
-            <i data-lucide="bar-chart-2"></i> 지난 기록 보기
-          </button>
-          <button class="btn" style="flex: 1;" onclick="navigateTo('home')">
-            홈으로 가기
-          </button>
+    <!-- 링크 카드 -->
+    <div>
+      <div class="form-section-title">링크 카드</div>
+      <div style="font-size:0.68rem;color:var(--muted);margin-bottom:10px;">첫 번째 카드는 보라색 강조로 표시됩니다.</div>
+      <div class="link-items" id="linkItems"></div>
+      <button class="btn-add-link" id="btnAddLink">+ 링크 추가</button>
+    </div>
+
+    <!-- 테마 색상 -->
+    <div>
+      <div class="form-section-title">테마 색상</div>
+      <div class="field"><label>배경 & 강조색</label>
+        <div class="color-row" id="themeRow">
+          <div class="color-opt active" data-theme="F5F3FF,6C63FF,A78BFF,1A1A2E" style="background:linear-gradient(135deg,#6C63FF,#A78BFF)" title="라벤더 (기본)"></div>
+          <div class="color-opt" data-theme="F0F8F2,2C6E49,4A9066,1A2E1E" style="background:linear-gradient(135deg,#2C6E49,#4A9066)" title="포레스트 그린"></div>
+          <div class="color-opt" data-theme="FFF8F0,E8822A,F0A84A,2E1E0A" style="background:linear-gradient(135deg,#E8822A,#F0A84A)" title="오렌지"></div>
+          <div class="color-opt" data-theme="F0F4FF,1A5CBE,3A7DE0,0A1A3E" style="background:linear-gradient(135deg,#1A5CBE,#3A7DE0)" title="블루"></div>
+          <div class="color-opt" data-theme="FFF0F5,C0395A,E05A7A,2E0A14" style="background:linear-gradient(135deg,#C0395A,#E05A7A)" title="로즈"></div>
+          <div class="color-opt" data-theme="F0F0F0,2A2A2A,444,0A0A0A" style="background:linear-gradient(135deg,#2A2A2A,#555)" title="블랙"></div>
         </div>
       </div>
     </div>
 
-    <!-- 4. Weekly History Screen -->
-    <div id="view-history" class="view-panel">
-      <div class="screen-header">
-        <div>
-          <span class="date-display">통계 및 회고</span>
-          <h2 class="screen-title">지난 7일</h2>
-        </div>
-      </div>
-
-      <!-- History Metric Cards -->
-      <div class="history-summary">
-        <div class="history-summary-card">
-          <div class="counter-display" style="font-size: 11px; text-transform: uppercase;">전체 실행률</div>
-          <div id="history-rate" class="history-summary-val">80%</div>
-        </div>
-        <div class="history-summary-card">
-          <div class="counter-display" style="font-size: 11px; text-transform: uppercase;">완료한 칸 수</div>
-          <div id="history-done-count" class="history-summary-val">12<span>/15</span></div>
-        </div>
-      </div>
-
-      <!-- Bar Chart -->
-      <div class="glass-card" style="padding: 16px 12px;">
-        <div id="weekly-chart" class="chart-container">
-          <div class="chart-y-axis">
-            <div class="chart-grid-line"><span class="chart-grid-label">3개</span></div>
-            <div class="chart-grid-line"><span class="chart-grid-label">2개</span></div>
-            <div class="chart-grid-line"><span class="chart-grid-label">1개</span></div>
-            <div class="chart-grid-line"><span class="chart-grid-label">0</span></div>
-          </div>
-          
-          <!-- Dynamic bars will be inserted here -->
-        </div>
-      </div>
-
-      <!-- Insights -->
-      <div class="insight-card">
-        <i data-lucide="sparkles" class="insight-icon"></i>
-        <div class="insight-body">
-          <h4 class="insight-title">슬롯 피드백</h4>
-          <p id="insight-text-content" class="insight-text">데이터를 불러오는 중입니다...</p>
-        </div>
-      </div>
-
-      <!-- Historical Calendar List -->
-      <h3 style="font-size: 16px; margin-bottom: 12px; color: #fff;">일별 상세 이력</h3>
-      <div id="history-items-list" class="history-list">
-        <!-- Dynamic list will be inserted here -->
-      </div>
-    </div>
-
-    <!-- 5. Daily Detail View -->
-    <div id="view-detail" class="view-panel">
-      <div class="back-header">
-        <button class="back-btn" onclick="navigateTo('history')" aria-label="뒤로 가기">
-          <i data-lucide="arrow-left"></i>
-        </button>
-        <div>
-          <span class="date-display">기록 조회</span>
-          <h2 id="detail-date-title" class="screen-title" style="font-size: 20px;">5월 18일 이력</h2>
-        </div>
-      </div>
-
-      <div class="detail-card-list">
-        <!-- Morning Detail Card -->
-        <div id="detail-morning-card" class="detail-slot-card">
-          <div class="detail-slot-status" id="detail-morning-status">
-            <i data-lucide="circle"></i>
-          </div>
-          <div style="flex: 1;">
-            <div class="slot-badge" style="margin-bottom: 4px;">오전</div>
-            <div id="detail-morning-text" class="slot-content">오전 할 일이 등록되지 않았습니다.</div>
-          </div>
-        </div>
-
-        <!-- Afternoon Detail Card -->
-        <div id="detail-afternoon-card" class="detail-slot-card">
-          <div class="detail-slot-status" id="detail-afternoon-status">
-            <i data-lucide="circle"></i>
-          </div>
-          <div style="flex: 1;">
-            <div class="slot-badge" style="margin-bottom: 4px;">오후</div>
-            <div id="detail-afternoon-text" class="slot-content">오후 할 일이 등록되지 않았습니다.</div>
-          </div>
-        </div>
-
-        <!-- Evening Detail Card -->
-        <div id="detail-evening-card" class="detail-slot-card">
-          <div class="detail-slot-status" id="detail-evening-status">
-            <i data-lucide="circle"></i>
-          </div>
-          <div style="flex: 1;">
-            <div class="slot-badge" style="margin-bottom: 4px;">저녁</div>
-            <div id="detail-evening-text" class="slot-content">저녁 할 일이 등록되지 않았습니다.</div>
-          </div>
-        </div>
-      </div>
-
-      <div class="insight-card" style="background: rgba(255, 255, 255, 0.02); border-color: rgba(255, 255, 255, 0.04);">
-        <i data-lucide="info" class="insight-icon" style="color: var(--text-muted);"></i>
-        <div class="insight-body">
-          <h4 class="insight-title" style="color: var(--text-muted);">당일 메모</h4>
-          <p id="detail-memo" class="insight-text">완료 이력은 수정할 수 없는 읽기 전용 데이터입니다.</p>
-        </div>
-      </div>
-
-      <button id="detail-cta-plan" class="btn" style="width: 100%; display: none;" onclick="navigateTo('plan-input')">
-        <i data-lucide="edit-3"></i> 오늘 계획 세우러 가기
-      </button>
-    </div>
-
-    <!-- 6. Settings Screen -->
-    <div id="view-settings" class="view-panel">
-      <div class="screen-header">
-        <div>
-          <span class="date-display">환경설정</span>
-          <h2 class="screen-title">설정</h2>
-        </div>
-      </div>
-
-      <div class="settings-list">
-        <div class="settings-group-title">알림 설정</div>
-        
-        <!-- Push Alarm toggle -->
-        <div class="settings-row">
-          <div class="settings-row-left">
-            <span class="settings-label">아침 알림</span>
-            <span class="settings-desc">매일 아침 지정 시간에 오늘 행동을 알려줘요.</span>
-          </div>
-          <label class="switch">
-            <input type="checkbox" id="setting-alarm-toggle" onchange="toggleAlarmSetting()">
-            <span class="slider"></span>
-          </label>
-        </div>
-
-        <!-- Alarm Time picker -->
-        <div class="settings-row" id="settings-alarm-time-row">
-          <div class="settings-row-left">
-            <span class="settings-label">알림 시각</span>
-            <span class="settings-desc">행동 알림을 받을 시각을 설정합니다.</span>
-          </div>
-          <input type="time" id="setting-alarm-time" class="time-picker" value="08:00" onchange="updateAlarmTimeSetting()">
-        </div>
-
-        <div class="settings-group-title">데이터 관리</div>
-
-        <!-- Data Clear button -->
-        <div class="settings-row" style="cursor: pointer;" onclick="openResetModal()">
-          <div class="settings-row-left">
-            <span class="settings-label" style="color: var(--danger);">모든 기록 삭제</span>
-            <span class="settings-desc">저장된 오늘 계획과 모든 히스토리를 초기화합니다.</span>
-          </div>
-          <i data-lucide="trash-2" style="color: var(--danger); width: 18px;"></i>
-        </div>
-
-        <div class="settings-group-title">정보</div>
-        
-        <!-- App Version -->
-        <div class="settings-row">
-          <div class="settings-row-left">
-            <span class="settings-label">버전 정보</span>
-            <span class="settings-desc">Slotday 데모 프로토타입</span>
-          </div>
-          <span style="font-size: 14px; font-weight: 700; color: var(--text-dark);">v0.1</span>
-        </div>
-      </div>
-    </div>
-
-    <!-- Tab Bar Bottom Navigation -->
-    <nav class="bottom-nav">
-      <button id="nav-home" class="nav-item active" onclick="navigateTo('home')" aria-label="홈 탭">
-        <i data-lucide="home"></i>
-        홈
-      </button>
-      <button id="nav-history" class="nav-item" onclick="navigateTo('history')" aria-label="히스토리 탭">
-        <i data-lucide="bar-chart-2"></i>
-        기록
-      </button>
-      <button id="nav-settings" class="nav-item" onclick="navigateTo('settings')" aria-label="설정 탭">
-        <i data-lucide="settings"></i>
-        설정
-      </button>
-    </nav>
-
-    <!-- All Completed Overlay Message -->
-    <div id="all-complete-modal" class="all-complete-overlay">
-      <div class="trophy-wrapper">
-        <i data-lucide="trophy"></i>
-      </div>
-      <h2 class="overlay-title">오늘 계획 완료!</h2>
-      <p class="overlay-desc">오늘 계획된 3칸을 전부 멋지게 실행하셨습니다. 스스로에게 칭찬을 보내주세요!</p>
-      
-      <div style="display: flex; flex-direction: column; gap: 12px; width: 100%; max-width: 260px;">
-        <button class="btn" onclick="goToPlanTomorrow()">
-          <i data-lucide="moon"></i> 내일 계획 잡으러 가기
-        </button>
-        <button class="btn btn-secondary" onclick="closeAllCompleteOverlay()">
-          오늘 화면에 머무르기
-        </button>
-      </div>
-    </div>
-
-    <!-- Data Reset Confirmation Modal -->
-    <div id="reset-confirm-modal" class="modal-overlay">
-      <div class="modal-box">
-        <div class="modal-icon">
-          <i data-lucide="alert-triangle"></i>
-        </div>
-        <h3 class="modal-title">데이터 초기화</h3>
-        <p class="modal-desc">정말로 모든 데이터를 삭제하시겠습니까?<br>이 작업은 되돌릴 수 없습니다.</p>
-        <div class="modal-actions">
-          <button class="btn btn-secondary" onclick="closeResetModal()">취소</button>
-          <button class="btn" style="background: var(--danger);" onclick="resetData()">초기화</button>
-        </div>
-      </div>
+    <div>
+      <button class="btn-generate" id="btnGenerate">✦ HTML 파일 생성 & 다운로드</button>
+      <button class="btn-download" id="btnDownload">⬇ 다시 다운로드</button>
     </div>
 
   </div>
+</div>
 
-  <script>
-    // Constants & Global State
-    let activeView = 'home';
-    let plans = {}; // format: { 'YYYY-MM-DD': { morning: {task, completed}, ... } }
-    let settings = { alarmEnabled: true, alarmTime: '08:00' };
+<!-- RIGHT: 미리보기 -->
+<div class="right">
+  <div class="phone" id="phoneFrame">
+    <!-- 노치 -->
+    <div class="phone-notch"><div class="notch-cut"></div></div>
 
-    // DOM Elements
-    const views = {
-      'home': document.getElementById('view-home'),
-      'plan-input': document.getElementById('view-plan-input'),
-      'plan-complete': document.getElementById('view-plan-complete'),
-      'history': document.getElementById('view-history'),
-      'detail': document.getElementById('view-detail'),
-      'settings': document.getElementById('view-settings'),
-    };
-    
-    const navItems = {
-      'home': document.getElementById('nav-home'),
-      'history': document.getElementById('nav-history'),
-      'settings': document.getElementById('nav-settings'),
-    };
+    <div class="phone-screen" id="phoneScreen">
+      <div class="sbar" id="phoneSbar">
+        <span class="sbar-time">9:41</span>
+        <div class="sbar-icons">
+          <svg width="12" height="8" viewBox="0 0 12 8" fill="#1A1A2E"><rect x="0" y="2" width="2" height="6" rx=".5"/><rect x="3" y="1" width="2" height="7" rx=".5"/><rect x="6" y="0" width="2" height="8" rx=".5"/><rect x="9" y="0" width="2" height="8" rx=".5" opacity=".25"/></svg>
+          <svg width="12" height="8" viewBox="0 0 12 8" fill="#1A1A2E"><path d="M6 1.5C8.3 1.5 10.3 2.4 11.7 3.9l.8-.8C10.9 1.3 8.6 0 6 0S1.1 1.3-.5 3.1l.8.8C1.7 2.4 3.7 1.5 6 1.5z" opacity=".25"/><path d="M6 3.5c1.5 0 2.8.6 3.8 1.5l.8-.8C9.3 3 7.8 2.5 6 2.5S2.7 3 1.4 4.2l.8.8C3.2 4.1 4.5 3.5 6 3.5z" opacity=".6"/><path d="M6 5.5c.9 0 1.6.3 2.2.8L9 5.5C8.1 4.8 7.1 4.5 6 4.5S3.9 4.8 3 5.5l.8.8C4.4 5.8 5.1 5.5 6 5.5z"/><circle cx="6" cy="7.5" r="1"/></svg>
+          <svg width="20" height="8" viewBox="0 0 20 8" fill="none"><rect x=".5" y=".5" width="15" height="7" rx="1.5" stroke="#1A1A2E" stroke-width="1"/><rect x="1.5" y="1.5" width="11" height="5" rx="1" fill="#1A1A2E"/><rect x="16.5" y="2.5" width="2" height="3" rx=".5" fill="#1A1A2E" opacity=".4"/></svg>
+        </div>
+      </div>
 
-    // Helper functions for Date
-    function getTodayString() {
-      const d = new Date();
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const date = String(d.getDate()).padStart(2, '0');
-      return `${year}-${month}-${date}`;
-    }
+      <div class="content" id="phoneContent">
+        <div class="pc-profile" id="pcProfile">
+          <div class="pc-avatar" id="pcAvatar"><span id="pcAvatarText">?</span><img id="pcAvatarImg"></div>
+          <div class="pc-name" id="pcName">@닉네임</div>
+          <div class="pc-bio" id="pcBio">소개를 입력하세요</div>
+        </div>
+        <div class="pc-stats" id="pcStats">
+          <div class="pc-stat"><div class="pc-stat-n" id="stat1n">0</div><div class="pc-stat-l" id="stat1l">LINKS</div></div>
+          <div class="pc-stat"><div class="pc-stat-n" id="stat2n">1.2K</div><div class="pc-stat-l" id="stat2l">FOLLOWERS</div></div>
+        </div>
+        <div class="pc-div"></div>
+        <div class="pc-icons" id="pcIcons"></div>
+        <div class="pc-cards" id="pcCards"></div>
+      </div>
+    </div>
+  </div>
+</div>
 
-    function getYesterdayString() {
-      const d = new Date();
-      d.setDate(d.getDate() - 1);
-      const year = d.getFullYear();
-      const month = String(d.getMonth() + 1).padStart(2, '0');
-      const date = String(d.getDate()).padStart(2, '0');
-      return `${year}-${month}-${date}`;
-    }
+</div>
 
-    function getFormattedKoreanDate(dateStr) {
-      const d = new Date(dateStr);
-      const month = d.getMonth() + 1;
-      const date = d.getDate();
-      const days = ['일', '월', '화', '수', '목', '금', '토'];
-      const day = days[d.getDay()];
-      return `${month}월 ${date}일 (${day})`;
-    }
+<script>
+// ── SVG EMBLEMS (공식 스타일) ──
+const EMBLEMS = {
+  insta: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <defs><radialGradient id="ig" cx="30%" cy="107%" r="150%"><stop offset="0%" stop-color="#fdf497"/><stop offset="5%" stop-color="#fdf497"/><stop offset="45%" stop-color="#fd5949"/><stop offset="60%" stop-color="#d6249f"/><stop offset="90%" stop-color="#285AEB"/></radialGradient></defs>
+    <rect width="24" height="24" rx="6" fill="url(#ig)"/>
+    <path d="M12 7.4A4.6 4.6 0 107.4 12 4.61 4.61 0 0012 7.4zm0 7.6A3 3 0 119 12a3 3 0 013 3zm4.8-7.8a1.08 1.08 0 11-1.08-1.08A1.08 1.08 0 0116.8 7.2z" fill="white"/>
+    <path d="M16.5 3h-9A4.5 4.5 0 003 7.5v9A4.5 4.5 0 007.5 21h9A4.5 4.5 0 0021 16.5v-9A4.5 4.5 0 0016.5 3zm3 13.5A3 3 0 0116.5 19.5h-9A3 3 0 014.5 16.5v-9A3 3 0 017.5 4.5h9A3 3 0 0119.5 7.5z" fill="white" opacity="0"/>
+  </svg>`,
 
-    // App Initialization
-    window.addEventListener('DOMContentLoaded', () => {
-      loadData();
-      initializeTimeSlots();
-      renderToday();
-      lucide.createIcons();
+  kakao: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <rect width="24" height="24" rx="5" fill="#FEE500"/>
+    <path d="M12 5C7.03 5 3 8.13 3 12.01c0 2.53 1.64 4.75 4.1 6.03l-.9 3.33a.3.3 0 00.45.33L10.7 19.4c.42.06.85.1 1.3.1 4.97 0 9-3.13 9-7.01S16.97 5 12 5z" fill="#3A1D00"/>
+  </svg>`,
+
+  youtube: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <rect width="24" height="24" rx="5" fill="#FF0000"/>
+    <path d="M21.6 8.2a2.7 2.7 0 00-1.9-1.9C18 6 12 6 12 6s-6 0-7.7.3A2.7 2.7 0 002.4 8.2 28 28 0 002 12a28 28 0 00.4 3.8 2.7 2.7 0 001.9 1.9C6 18 12 18 12 18s6 0 7.7-.3a2.7 2.7 0 001.9-1.9A28 28 0 0022 12a28 28 0 00-.4-3.8z" fill="white"/>
+    <path d="M10 15l5-3-5-3v6z" fill="#FF0000"/>
+  </svg>`,
+
+  naver_blog: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <rect width="24" height="24" rx="5" fill="#03C75A"/>
+    <path d="M13.54 12.26L10.3 7H7v10h3.46l3.24-5.26V17H17V7h-3.46z" fill="white"/>
+  </svg>`,
+
+  email: `<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+    <rect width="24" height="24" rx="5" fill="#EA4335"/>
+    <path d="M20 8l-8 5-8-5V7a1 1 0 011-1h14a1 1 0 011 1v1z" fill="white"/>
+    <path d="M4 9.5l8 5 8-5V17a1 1 0 01-1 1H5a1 1 0 01-1-1V9.5z" fill="white"/>
+  </svg>`,
+};
+
+const LINK_ICONS = ['🚀','🌱','🧭','📅','✍️','📮','🎓','💬','🛒','🔗','⭐','💡'];
+
+let photoData = null;
+let themeCurrent = {bg:'F5F3FF',ac1:'6C63FF',ac2:'A78BFF',dark:'1A1A2E'};
+
+// 테마 파싱
+function parseTheme(str) {
+  const [bg,ac1,ac2,dark] = str.split(',');
+  return {bg:`#${bg}`,ac1:`#${ac1}`,ac2:`#${ac2}`,dark:`#${dark}`};
+}
+
+// ── LINK ITEMS ──
+function addLinkItem(icon='🚀',title='',desc='',url='') {
+  const row = document.createElement('div');
+  row.className = 'link-item-row';
+  const iconOpts = LINK_ICONS.map(i=>`<option ${i===icon?'selected':''}>${i}</option>`).join('');
+  row.innerHTML = `
+    <select class="li-icon">${iconOpts}</select>
+    <input type="text" placeholder="제목" value="${title}" class="li-title">
+    <input type="text" placeholder="설명" value="${desc}" class="li-desc">
+    <input type="text" placeholder="URL" value="${url}" class="li-url">
+    <button class="link-remove">✕</button>`;
+  row.querySelector('.link-remove').onclick=()=>{row.remove();render();};
+  row.querySelectorAll('input,select').forEach(el=>el.addEventListener('input',render));
+  document.getElementById('linkItems').appendChild(row);
+  render();
+}
+
+document.getElementById('btnAddLink').onclick=()=>addLinkItem();
+
+// ── PHOTO ──
+document.getElementById('photoInput').addEventListener('change',function(e){
+  const file=e.target.files[0]; if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(ev){
+    photoData=ev.target.result;
+    const p=document.getElementById('photoPreview');
+    p.src=photoData; p.style.display='block';
+    document.getElementById('photoIcon').style.display='none';
+    document.getElementById('photoText').textContent='사진 변경';
+    render();
+  };
+  reader.readAsDataURL(file);
+});
+
+// ── THEME ──
+document.querySelectorAll('#themeRow .color-opt').forEach(el=>{
+  el.addEventListener('click',function(){
+    document.querySelectorAll('#themeRow .color-opt').forEach(e=>e.classList.remove('active'));
+    this.classList.add('active');
+    themeCurrent=parseTheme(this.dataset.theme);
+    render();
+  });
+});
+
+// ── INPUT LISTENERS ──
+['inp-name','inp-bio','sns-insta','sns-kakao','sns-youtube','sns-blog','sns-email',
+ 'stat1-n','stat1-l','stat2-n','stat2-l'].forEach(id=>{
+  document.getElementById(id).addEventListener('input',render);
+});
+
+// ── RENDER ──
+function render(){
+  const name   = document.getElementById('inp-name').value||'@닉네임';
+  const bio    = document.getElementById('inp-bio').value||'소개를 입력하세요';
+  const insta  = document.getElementById('sns-insta').value;
+  const kakao  = document.getElementById('sns-kakao').value;
+  const yt     = document.getElementById('sns-youtube').value;
+  const blog   = document.getElementById('sns-blog').value;
+  const email  = document.getElementById('sns-email').value;
+  const s1n    = document.getElementById('stat1-n').value||'0';
+  const s1l    = document.getElementById('stat1-l').value||'LINKS';
+  const s2n    = document.getElementById('stat2-n').value||'1.2K';
+  const s2l    = document.getElementById('stat2-l').value||'FOLLOWERS';
+  const t      = themeCurrent;
+
+  // 폰 배경색
+  document.getElementById('phoneScreen').style.background=t.bg;
+  document.getElementById('phoneSbar').style.background=t.bg;
+  document.getElementById('pcProfile').style.background=t.bg;
+  document.getElementById('pcStats').style.background=t.bg;
+  document.getElementById('pcIcons').style.background=t.bg;
+  document.getElementById('pcCards').style.background=t.bg;
+  document.getElementById('pcName').style.color=t.dark;
+
+  // 폰 프레임 테두리
+  document.getElementById('phoneFrame').style.borderColor=t.dark;
+  document.querySelector('.phone-notch').style.background=t.dark;
+
+  // 아바타
+  const av=document.getElementById('pcAvatar');
+  av.style.background=`linear-gradient(135deg,${t.ac1},${t.ac2})`;
+  const avImg=document.getElementById('pcAvatarImg');
+  const avTxt=document.getElementById('pcAvatarText');
+  if(photoData){avImg.src=photoData;avImg.style.display='block';avTxt.style.display='none';}
+  else{avImg.style.display='none';avTxt.style.display='block';avTxt.textContent=name.replace('@','').charAt(0)||'?';}
+
+  document.getElementById('pcName').textContent=name;
+  document.getElementById('pcBio').textContent=bio;
+  document.getElementById('stat1n').textContent=s1n;
+  document.getElementById('stat1l').textContent=s1l;
+  document.getElementById('stat2n').textContent=s2n;
+  document.getElementById('stat2l').textContent=s2l;
+  document.getElementById('stat1n').style.color=t.dark;
+  document.getElementById('stat2n').style.color=t.dark;
+
+  // SNS 아이콘
+  const sns=[
+    {val:insta,svg:EMBLEMS.insta,label:'Instagram',href:insta},
+    {val:kakao,svg:EMBLEMS.kakao,label:'카카오',href:kakao},
+    {val:yt,svg:EMBLEMS.youtube,label:'YouTube',href:yt},
+    {val:blog,svg:EMBLEMS.naver_blog,label:'Blog',href:blog},
+    {val:email,svg:EMBLEMS.email,label:'Email',href:`mailto:${email}`},
+  ].filter(s=>s.val);
+
+  const icEl=document.getElementById('pcIcons');
+  icEl.innerHTML='';
+  if(sns.length){
+    sns.forEach(s=>{
+      icEl.innerHTML+=`<a class="pc-ic" href="${s.href}" target="_blank">
+        <div class="pc-ic-circle" style="background:transparent;">${s.svg}</div>
+        <span class="pc-ic-label">${s.label}</span>
+      </a>`;
     });
-
-    // Load persisted data or generate mock data
-    function loadData() {
-      const savedPlans = localStorage.getItem('slotday_plans');
-      const savedSettings = localStorage.getItem('slotday_settings');
-
-      if (savedPlans) {
-        plans = JSON.parse(savedPlans);
-      } else {
-        // Seed mock data for first-time use to show rich statistics
-        generateMockHistory();
-      }
-
-      if (savedSettings) {
-        settings = JSON.parse(savedSettings);
-      }
-
-      // Populate Settings inputs
-      document.getElementById('setting-alarm-toggle').checked = settings.alarmEnabled;
-      document.getElementById('setting-alarm-time').value = settings.alarmTime;
-      toggleAlarmTimeRow(settings.alarmEnabled);
-    }
-
-    function saveData() {
-      localStorage.setItem('slotday_plans', JSON.stringify(plans));
-      localStorage.setItem('slotday_settings', JSON.stringify(settings));
-    }
-
-    // Generate 7 days of realistic history if no data exists
-    function generateMockHistory() {
-      const today = new Date();
-      const mockTasks = [
-        { morning: "타겟 페르소나 3명 정의하기", morning_c: true, afternoon: "경쟁사 서비스 강약점 분석", afternoon_c: true, evening: "코칭 일지 작성하기", evening_c: false },
-        { morning: "스마트폰 카메라 UI 리서치", morning_c: true, afternoon: "와이어프레임 1차 스케치", afternoon_c: false, evening: "가벼운 러닝 5km", evening_c: true },
-        { morning: "코치 메시지 콘텐츠 초안 피드백", morning_c: true, afternoon: "피드백 수집 및 노션 기록", afternoon_c: true, evening: "가족 저녁 약속", evening_c: true },
-        { morning: "Slotday 핵심 가치 제안 정리", morning_c: true, afternoon: "UI 컴포넌트 CSS 구조화", afternoon_c: true, evening: "바이브코딩 회의 준비", evening_c: true },
-        { morning: "vCard 생성 라이브러리 검토", morning_c: true, afternoon: "데모 배포 서버 테스트", afternoon_c: false, evening: "일기 쓰기 및 명상", evening_c: false },
-        { morning: "어제 미완료 과제 복습", morning_c: true, afternoon: "사용성 테스트 시나리오 제작", afternoon_c: true, evening: "스트릭 마감 일정 확인", evening_c: true },
-        { morning: "사용자 인터뷰 질문 정리", morning_c: true, afternoon: "데모 디자인 마크업 개선", afternoon_c: true, evening: "책 읽기 30분", evening_c: true }
-      ];
-
-      for (let i = 7; i >= 1; i--) {
-        const d = new Date();
-        d.setDate(today.getDate() - i);
-        
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const date = String(d.getDate()).padStart(2, '0');
-        const dateKey = `${year}-${month}-${date}`;
-        
-        const taskSet = mockTasks[7 - i];
-        
-        plans[dateKey] = {
-          morning: { task: taskSet.morning, completed: taskSet.morning_c },
-          afternoon: { task: taskSet.afternoon, completed: taskSet.afternoon_c },
-          evening: { task: taskSet.evening, completed: taskSet.evening_c }
-        };
-      }
-      saveData();
-    }
-
-    // Time slots active display logic
-    function initializeTimeSlots() {
-      const hour = new Date().getHours();
-      
-      // Reset all indicators
-      document.getElementById('indicator-morning').style.display = 'none';
-      document.getElementById('indicator-afternoon').style.display = 'none';
-      document.getElementById('indicator-evening').style.display = 'none';
-      
-      document.getElementById('slot-morning-card').classList.remove('active-slot');
-      document.getElementById('slot-afternoon-card').classList.remove('active-slot');
-      document.getElementById('slot-evening-card').classList.remove('active-slot');
-
-      if (hour >= 6 && hour < 12) {
-        document.getElementById('indicator-morning').style.display = 'flex';
-        document.getElementById('slot-morning-card').classList.add('active-slot');
-      } else if (hour >= 12 && hour < 18) {
-        document.getElementById('indicator-afternoon').style.display = 'flex';
-        document.getElementById('slot-afternoon-card').classList.add('active-slot');
-      } else {
-        // Evening (18:00 to 06:00 next day)
-        document.getElementById('indicator-evening').style.display = 'flex';
-        document.getElementById('slot-evening-card').classList.add('active-slot');
-      }
-    }
-
-    // Navigation logic
-    function navigateTo(viewName, params = null) {
-      // Hide all panels
-      for (const key in views) {
-        views[key].classList.remove('active');
-      }
-      
-      // Show requested panel
-      views[viewName].classList.add('active');
-      activeView = viewName;
-
-      // Update bottom nav active state (if view is one of home, history, settings)
-      for (const navKey in navItems) {
-        navItems[navKey].classList.remove('active');
-      }
-      
-      if (viewName === 'home' || viewName === 'history' || viewName === 'settings') {
-        navItems[viewName].classList.add('active');
-        document.querySelector('.bottom-nav').style.display = 'flex';
-      } else {
-        // Hide bottom tab bar on edit, complete, detail pages to maximize vertical focus
-        document.querySelector('.bottom-nav').style.display = 'none';
-      }
-
-      // View-specific loading hooks
-      if (viewName === 'home') {
-        renderToday();
-        initializeTimeSlots();
-      } else if (viewName === 'plan-input') {
-        prepareInputForm();
-      } else if (viewName === 'history') {
-        renderHistory();
-      } else if (viewName === 'detail' && params) {
-        renderDetail(params.date);
-      }
-      
-      // Update icons asynchronously
-      setTimeout(() => lucide.createIcons(), 50);
-    }
-
-    // Render Home View
-    function renderToday() {
-      const todayStr = getTodayString();
-      document.getElementById('home-date').innerText = getFormattedKoreanDate(todayStr);
-
-      const todayPlan = plans[todayStr];
-      const editFab = document.getElementById('edit-fab');
-
-      if (!todayPlan) {
-        // Plan doesn't exist for today, show Empty State
-        document.getElementById('empty-state-view').style.display = 'flex';
-        document.getElementById('slots-view').style.display = 'none';
-        document.getElementById('home-counter').style.display = 'none';
-        editFab.style.display = 'none';
-      } else {
-        // Plan exists, display tasks
-        document.getElementById('empty-state-view').style.display = 'none';
-        document.getElementById('slots-view').style.display = 'flex';
-        document.getElementById('home-counter').style.display = 'block';
-        editFab.style.display = 'flex';
-
-        // Set text content
-        document.getElementById('slot-morning-text').innerText = todayPlan.morning.task || '오전 계획 없음';
-        document.getElementById('slot-afternoon-text').innerText = todayPlan.afternoon.task || '오후 계획 없음';
-        document.getElementById('slot-evening-text').innerText = todayPlan.evening.task || '저녁 계획 없음';
-
-        // Set completion UI
-        setTaskUI('morning', todayPlan.morning.completed);
-        setTaskUI('afternoon', todayPlan.afternoon.completed);
-        setTaskUI('evening', todayPlan.evening.completed);
-
-        // Update count badge
-        updateCompletedBadge(todayPlan);
-      }
-    }
-
-    function setTaskUI(slot, isCompleted) {
-      const card = document.getElementById(`slot-${slot}-card`);
-      if (isCompleted) {
-        card.classList.add('completed');
-      } else {
-        card.classList.remove('completed');
-      }
-    }
-
-    function updateCompletedBadge(plan) {
-      let count = 0;
-      if (plan.morning.task && plan.morning.completed) count++;
-      if (plan.afternoon.task && plan.afternoon.completed) count++;
-      if (plan.evening.task && plan.evening.completed) count++;
-      
-      let total = 0;
-      if (plan.morning.task) total++;
-      if (plan.afternoon.task) total++;
-      if (plan.evening.task) total++;
-
-      document.getElementById('completed-count-badge').innerText = count;
-      document.getElementById('home-counter').innerHTML = `<span class="counter-number">${count}</span>/${total} 완료`;
-    }
-
-    // Toggle Checkmark
-    function toggleTask(slot) {
-      const todayStr = getTodayString();
-      const plan = plans[todayStr];
-      if (!plan || !plan[slot].task) return;
-
-      plan[slot].completed = !plan[slot].completed;
-      saveData();
-      renderToday();
-
-      // Check if all active tasks are completed
-      let allCompleted = true;
-      let activeCount = 0;
-      
-      ['morning', 'afternoon', 'evening'].forEach(s => {
-        if (plan[s].task) {
-          activeCount++;
-          if (!plan[s].completed) {
-            allCompleted = false;
-          }
-        }
-      });
-
-      if (allCompleted && activeCount > 0) {
-        // Trigger celebration overlay and confetti
-        setTimeout(() => {
-          document.getElementById('all-complete-modal').classList.add('active');
-          triggerConfetti();
-        }, 300);
-      }
-    }
-
-    // Confetti generator
-    function triggerConfetti() {
-      const duration = 2.5 * 1000;
-      const animationEnd = Date.now() + duration;
-      const defaults = { startVelocity: 25, spread: 360, ticks: 50, zIndex: 1000 };
-
-      function randomInRange(min, max) {
-        return Math.random() * (max - min) + min;
-      }
-
-      const interval = setInterval(function() {
-        const timeLeft = animationEnd - Date.now();
-
-        if (timeLeft <= 0) {
-          return clearInterval(interval);
-        }
-
-        const particleCount = 40 * (timeLeft / duration);
-        // source custom confetti falling points
-        confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 } }));
-        confetti(Object.assign({}, defaults, { particleCount, origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 } }));
-      }, 250);
-    }
-
-    function closeAllCompleteOverlay() {
-      document.getElementById('all-complete-modal').classList.remove('active');
-    }
-
-    function goToPlanTomorrow() {
-      closeAllCompleteOverlay();
-      navigateTo('plan-input');
-    }
-
-    // Toast Warnings
-    function showToast(message) {
-      const toast = document.getElementById('warning-toast');
-      const text = document.getElementById('toast-text');
-      text.innerText = message;
-      toast.classList.add('active');
-
-      setTimeout(() => {
-        toast.classList.remove('active');
-      }, 2500);
-    }
-
-    // Plan input form logic
-    function prepareInputForm() {
-      const todayStr = getTodayString();
-      const yesterdayStr = getYesterdayString();
-      
-      const todayPlan = plans[todayStr];
-      const yesterdayPlan = plans[yesterdayStr];
-
-      // Populate input values if editing
-      if (todayPlan) {
-        document.getElementById('input-morning').value = todayPlan.morning.task || '';
-        document.getElementById('input-afternoon').value = todayPlan.afternoon.task || '';
-        document.getElementById('input-evening').value = todayPlan.evening.task || '';
-      } else {
-        document.getElementById('input-morning').value = '';
-        document.getElementById('input-afternoon').value = '';
-        document.getElementById('input-evening').value = '';
-      }
-
-      updateCharCounter('morning');
-      updateCharCounter('afternoon');
-      updateCharCounter('evening');
-
-      // Yesterday's unfinished task hint
-      const hintBox = document.getElementById('yesterday-hint');
-      if (yesterdayPlan) {
-        let unfinishedTask = '';
-        if (yesterdayPlan.morning.task && !yesterdayPlan.morning.completed) unfinishedTask = yesterdayPlan.morning.task;
-        else if (yesterdayPlan.afternoon.task && !yesterdayPlan.afternoon.completed) unfinishedTask = yesterdayPlan.afternoon.task;
-        else if (yesterdayPlan.evening.task && !yesterdayPlan.evening.completed) unfinishedTask = yesterdayPlan.evening.task;
-
-        if (unfinishedTask) {
-          hintBox.style.display = 'flex';
-          document.getElementById('yesterday-unfinished-text').innerText = `"${unfinishedTask}"`;
-          // Attach data attribute to copy easily
-          hintBox.dataset.task = unfinishedTask;
-        } else {
-          hintBox.style.display = 'none';
-        }
-      } else {
-        hintBox.style.display = 'none';
-      }
-
-      // Autofocus morning
-      setTimeout(() => {
-        document.getElementById('input-morning').focus();
-      }, 300);
-    }
-
-    function updateCharCounter(slot) {
-      const input = document.getElementById(`input-${slot}`);
-      const counter = document.getElementById(`counter-${slot}`);
-      counter.innerText = `${input.value.length}/50`;
-    }
-
-    function useYesterdayHint() {
-      const hintBox = document.getElementById('yesterday-hint');
-      const unfinishedTask = hintBox.dataset.task;
-      if (unfinishedTask) {
-        document.getElementById('input-morning').value = unfinishedTask;
-        updateCharCounter('morning');
-        // Hide hint box with animation fade out
-        hintBox.style.opacity = '0.5';
-        setTimeout(() => { hintBox.style.display = 'none'; hintBox.style.opacity = '1'; }, 200);
-      }
-    }
-
-    function triggerFourthSlotWarning() {
-      showToast("3칸이 딱 좋아요. 계획을 더 단순화해볼까요?");
-    }
-
-    // Save Plan Form
-    function savePlan() {
-      const morningVal = document.getElementById('input-morning').value.trim();
-      const afternoonVal = document.getElementById('input-afternoon').value.trim();
-      const eveningVal = document.getElementById('input-evening').value.trim();
-
-      if (!morningVal) {
-        showToast("오전의 행동(필수)은 반드시 입력해야 합니다.");
-        document.getElementById('input-morning').focus();
-        return;
-      }
-
-      const todayStr = getTodayString();
-      const existingPlan = plans[todayStr];
-
-      // Store in plans object
-      plans[todayStr] = {
-        morning: { 
-          task: morningVal, 
-          completed: existingPlan ? existingPlan.morning.completed : false 
-        },
-        afternoon: { 
-          task: afternoonVal, 
-          completed: afternoonVal ? (existingPlan && existingPlan.afternoon.task === afternoonVal ? existingPlan.afternoon.completed : false) : false 
-        },
-        evening: { 
-          task: eveningVal, 
-          completed: eveningVal ? (existingPlan && existingPlan.evening.task === eveningVal ? existingPlan.evening.completed : false) : false 
-        }
-      };
-
-      saveData();
-
-      // Show summary on Complete screen
-      document.getElementById('summary-morning').innerText = morningVal;
-      document.getElementById('summary-afternoon').innerText = afternoonVal || '계획 없음';
-      document.getElementById('summary-evening').innerText = eveningVal || '계획 없음';
-
-      navigateTo('plan-complete');
-    }
-
-    // Render Weekly Statistics & History list
-    function renderHistory() {
-      const chartContainer = document.getElementById('weekly-chart');
-      const listContainer = document.getElementById('history-items-list');
-
-      // Clear previous inputs except grid lines
-      const yAxis = chartContainer.querySelector('.chart-y-axis');
-      chartContainer.innerHTML = '';
-      chartContainer.appendChild(yAxis);
-      listContainer.innerHTML = '';
-
-      // Get last 7 days keys chronologically (oldest to newest)
-      const dateKeys = [];
-      const today = new Date();
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date();
-        d.setDate(today.getDate() - i);
-        const year = d.getFullYear();
-        const month = String(d.getMonth() + 1).padStart(2, '0');
-        const date = String(d.getDate()).padStart(2, '0');
-        dateKeys.push(`${year}-${month}-${date}`);
-      }
-
-      let totalTasks = 0;
-      let completedTasks = 0;
-      let statsBySlot = { morning: { planned: 0, done: 0 }, afternoon: { planned: 0, done: 0 }, evening: { planned: 0, done: 0 } };
-
-      // Render chart columns
-      dateKeys.forEach(dateStr => {
-        const plan = plans[dateStr];
-        let plannedCount = 0;
-        let doneCount = 0;
-
-        if (plan) {
-          ['morning', 'afternoon', 'evening'].forEach(slot => {
-            if (plan[slot].task) {
-              plannedCount++;
-              totalTasks++;
-              statsBySlot[slot].planned++;
-              if (plan[slot].completed) {
-                doneCount++;
-                completedTasks++;
-                statsBySlot[slot].done++;
-              }
-            }
-          });
-        }
-
-        // Height percentage (max tasks = 3)
-        const heightPct = plannedCount > 0 ? (doneCount / 3) * 100 : 0;
-        const totalPlannedHeightPct = (plannedCount / 3) * 100;
-        
-        // Bar label (Month/Day)
-        const d = new Date(dateStr);
-        const label = `${d.getMonth() + 1}/${d.getDate()}`;
-
-        // Create column elements
-        const barWrapper = document.createElement('div');
-        barWrapper.className = 'chart-bar-wrapper';
-        
-        const isToday = dateStr === getTodayString();
-        const dayName = isToday ? '오늘' : label;
-
-        barWrapper.innerHTML = `
-          <div class="chart-bar-tooltip">${plannedCount > 0 ? `${doneCount}/${plannedCount} 완료` : '기록 없음'}</div>
-          <div class="chart-bar-outer" style="height: 100px;">
-            <div class="chart-bar-inner ${doneCount === plannedCount && plannedCount > 0 ? 'success-bar' : ''}" style="height: ${heightPct}%;"></div>
-          </div>
-          <span class="chart-label" style="${isToday ? 'color: var(--accent); font-weight: 700;' : ''}">${dayName}</span>
-        `;
-        chartContainer.appendChild(barWrapper);
-      });
-
-      // Update counters display
-      const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
-      document.getElementById('history-rate').innerText = `${completionRate}%`;
-      document.getElementById('history-done-count').innerHTML = `${completedTasks}<span>/${totalTasks}</span>`;
-
-      // Generate Insights
-      let insightText = '';
-      let lowestRate = 100;
-      let lowestSlot = '';
-      
-      ['morning', 'afternoon', 'evening'].forEach(slot => {
-        const slotPlanned = statsBySlot[slot].planned;
-        const slotDone = statsBySlot[slot].done;
-        if (slotPlanned > 0) {
-          const rate = (slotDone / slotPlanned) * 100;
-          if (rate < lowestRate) {
-            lowestRate = rate;
-            lowestSlot = slot;
-          }
-        }
-      });
-
-      const slotKoreanNames = { morning: '오전', afternoon: '오후', evening: '저녁' };
-
-      if (totalTasks === 0) {
-        insightText = "아직 기록이 없습니다. 오늘의 첫 슬롯 계획을 잡고 실행률 통계를 쌓아보세요!";
-      } else if (lowestSlot && lowestRate < 60) {
-        insightText = `지난 7일간 <strong>${slotKoreanNames[lowestSlot]} 칸</strong>의 실행률이 <strong>${Math.round(lowestRate)}%</strong>로 가장 낮습니다. 내일은 ${slotKoreanNames[lowestSlot]} 태스크를 더 잘게 쪼개어 가볍게 설정하는 것을 추천합니다.`;
-      } else if (completionRate >= 80) {
-        insightText = "실행력이 매우 대단합니다! 3칸 제약이 첫 걸음의 부담을 효과적으로 낮춰주고 있습니다. 이 스트릭 페이스를 그대로 유지해보세요.";
-      } else {
-        insightText = "꾸준히 실행하고 있네요! 특히 오전 시간대의 첫 태스크 실행 성공이 하루 전체의 실행 속도(Strick)를 끌어올리는 좋은 트리거가 됩니다.";
-      }
-      
-      document.getElementById('insight-text-content').innerHTML = insightText;
-
-      // Render historical list items (newest first, excluding today to focus on history)
-      const listKeys = Object.keys(plans).sort((a, b) => new Date(b) - new Date(a));
-      
-      if (listKeys.length === 0) {
-        listContainer.innerHTML = '<p style="color: var(--text-dark); text-align: center; font-size: 13px; padding: 20px;">이전 기록이 없습니다.</p>';
-      } else {
-        listKeys.forEach(dateStr => {
-          const plan = plans[dateStr];
-          let totalPlanned = 0;
-          let totalDone = 0;
-          
-          ['morning', 'afternoon', 'evening'].forEach(s => {
-            if (plan[s].task) {
-              totalPlanned++;
-              if (plan[s].completed) totalDone++;
-            }
-          });
-
-          const item = document.createElement('div');
-          item.className = 'history-item';
-          item.onclick = () => navigateTo('detail', { date: dateStr });
-
-          // Dot classes
-          const morningClass = plan.morning.task ? (plan.morning.completed ? 'completed' : 'failed') : '';
-          const afternoonClass = plan.afternoon.task ? (plan.afternoon.completed ? 'completed' : 'failed') : '';
-          const eveningClass = plan.evening.task ? (plan.evening.completed ? 'completed' : 'failed') : '';
-
-          item.innerHTML = `
-            <div class="history-item-left">
-              <span class="history-item-date">${getFormattedKoreanDate(dateStr)} ${dateStr === getTodayString() ? '(오늘)' : ''}</span>
-              <span class="history-item-desc">${plan.morning.task || '계획 없음'}...</span>
-            </div>
-            <div class="history-item-right">
-              <div class="history-item-dots">
-                <div class="history-dot ${morningClass}" title="오전"></div>
-                <div class="history-dot ${afternoonClass}" title="오후"></div>
-                <div class="history-dot ${eveningClass}" title="저녁"></div>
-              </div>
-              <span style="font-size: 12px; font-weight: 700; color: ${totalDone === totalPlanned ? 'var(--success)' : 'var(--text-muted)'}">${totalDone}/${totalPlanned}</span>
-              <i data-lucide="chevron-right" style="width: 16px; color: var(--text-dark);"></i>
-            </div>
-          `;
-          listContainer.appendChild(item);
-        });
-      }
-    }
-
-    // Render Daily Detail View (read-only)
-    function renderDetail(dateStr) {
-      document.getElementById('detail-date-title').innerText = getFormattedKoreanDate(dateStr);
-      
-      const plan = plans[dateStr];
-      const todayStr = getTodayString();
-      const planCta = document.getElementById('detail-cta-plan');
-
-      if (dateStr === todayStr && !plan) {
-        planCta.style.display = 'block';
-      } else {
-        planCta.style.display = 'none';
-      }
-
-      if (!plan) {
-        // empty slot details
-        ['morning', 'afternoon', 'evening'].forEach(s => {
-          document.getElementById(`detail-${s}-text`).innerText = '태스크가 등록되지 않았습니다.';
-          document.getElementById(`detail-${s}-card`).classList.remove('completed');
-          document.getElementById(`detail-${s}-status`).className = 'detail-slot-status failed';
-          document.getElementById(`detail-${s}-status`).innerHTML = '<i data-lucide="circle-dashed"></i>';
-        });
-      } else {
-        ['morning', 'afternoon', 'evening'].forEach(s => {
-          const task = plan[s].task;
-          const completed = plan[s].completed;
-          
-          const card = document.getElementById(`detail-${s}-card`);
-          const textEl = document.getElementById(`detail-${s}-text`);
-          const statusEl = document.getElementById(`detail-${s}-status`);
-
-          if (task) {
-            textEl.innerText = task;
-            if (completed) {
-              card.classList.add('completed');
-              statusEl.className = 'detail-slot-status completed';
-              statusEl.innerHTML = '<i data-lucide="check-circle-2"></i>';
-            } else {
-              card.classList.remove('completed');
-              statusEl.className = 'detail-slot-status failed';
-              statusEl.innerHTML = '<i data-lucide="circle"></i>';
-            }
-          } else {
-            textEl.innerText = '비워둔 슬롯';
-            card.classList.remove('completed');
-            statusEl.className = 'detail-slot-status failed';
-            statusEl.innerHTML = '<i data-lucide="minus"></i>';
-          }
-        });
-      }
-    }
-
-    // Settings screen operations
-    function toggleAlarmSetting() {
-      settings.alarmEnabled = document.getElementById('setting-alarm-toggle').checked;
-      toggleAlarmTimeRow(settings.alarmEnabled);
-      saveData();
-    }
-
-    function toggleAlarmTimeRow(enabled) {
-      const timeRow = document.getElementById('settings-alarm-time-row');
-      if (enabled) {
-        timeRow.style.opacity = '1';
-        timeRow.style.pointerEvents = 'auto';
-      } else {
-        timeRow.style.opacity = '0.4';
-        timeRow.style.pointerEvents = 'none';
-      }
-    }
-
-    function updateAlarmTimeSetting() {
-      settings.alarmTime = document.getElementById('setting-alarm-time').value;
-      saveData();
-    }
-
-    // Reset settings
-    function openResetModal() {
-      document.getElementById('reset-confirm-modal').classList.add('active');
-    }
-
-    function closeResetModal() {
-      document.getElementById('reset-confirm-modal').classList.remove('active');
-    }
-
-    function resetData() {
-      localStorage.removeItem('slotday_plans');
-      plans = {};
-      generateMockHistory(); // Seed fresh history stats
-      closeResetModal();
-      navigateTo('home');
-      showToast("데이터가 초기화되었습니다. (샘플 데이터 생성 완료)");
-    }
-  </script>
+    icEl.style.display='flex';
+  } else { icEl.style.display='none'; }
+
+  // 링크 카드
+  const cardsEl=document.getElementById('pcCards');
+  cardsEl.innerHTML='';
+  document.querySelectorAll('.link-item-row').forEach((row,i)=>{
+    const icon =row.querySelector('.li-icon').value;
+    const title=row.querySelector('.li-title').value||'제목';
+    const desc =row.querySelector('.li-desc').value;
+    const url  =row.querySelector('.li-url').value||'#';
+    const feat =i===0;
+    const cStyle=feat?`background:linear-gradient(135deg,${t.ac1},${t.ac2});`:'background:#fff;';
+    const tColor=feat?'color:#fff;':'';
+    const dColor=feat?'color:rgba(255,255,255,0.6);':'';
+    const iStyle=feat?'background:rgba(255,255,255,0.15);':'background:#F0EEFF;';
+    cardsEl.innerHTML+=`<a class="pc-card" href="${url}" target="_blank" style="${cStyle}">
+      <div class="pc-card-ico" style="${iStyle}">${icon}</div>
+      <div class="pc-card-body">
+        <div class="pc-card-title" style="${tColor}">${title}</div>
+        ${desc?`<div class="pc-card-desc" style="${dColor}">${desc}</div>`:''}
+      </div>
+      <div class="pc-card-arr" style="${feat?'color:rgba(255,255,255,0.4);':''}">↗</div>
+    </a>`;
+  });
+}
+
+// ── GENERATE ──
+function buildHTML(){
+  const name   = document.getElementById('inp-name').value||'이름';
+  const bio    = document.getElementById('inp-bio').value||'';
+  const insta  = document.getElementById('sns-insta').value;
+  const kakao  = document.getElementById('sns-kakao').value;
+  const yt     = document.getElementById('sns-youtube').value;
+  const blog   = document.getElementById('sns-blog').value;
+  const email  = document.getElementById('sns-email').value;
+  const s1n    = document.getElementById('stat1-n').value||'0';
+  const s1l    = document.getElementById('stat1-l').value||'LINKS';
+  const s2n    = document.getElementById('stat2-n').value||'1.2K';
+  const s2l    = document.getElementById('stat2-l').value||'FOLLOWERS';
+  const t      = themeCurrent;
+  const photo  = photoData||'';
+
+  const sns=[
+    {val:insta,svg:EMBLEMS.insta,label:'Instagram',href:insta},
+    {val:kakao,svg:EMBLEMS.kakao,label:'카카오',href:kakao},
+    {val:yt,svg:EMBLEMS.youtube,label:'YouTube',href:yt},
+    {val:blog,svg:EMBLEMS.naver_blog,label:'Blog',href:blog},
+    {val:email,svg:EMBLEMS.email,label:'Email',href:`mailto:${email}`},
+  ].filter(s=>s.val);
+
+  const iconsHTML=sns.map(s=>`<a class="ic" href="${s.href}" target="_blank">
+    <div class="ic-c">${s.svg}</div><span class="ic-l">${s.label}</span>
+  </a>`).join('');
+
+  const avatarHTML=photo
+    ?`<img src="${photo}" style="width:100%;height:100%;object-fit:cover;object-position:center top;">`
+    :`<span style="font-size:1.5rem;font-weight:600;color:#fff;">${name.replace('@','').charAt(0)||'?'}</span>`;
+
+  const cardsHTML=Array.from(document.querySelectorAll('.link-item-row')).map((row,i)=>{
+    const icon =row.querySelector('.li-icon').value;
+    const title=row.querySelector('.li-title').value||'제목';
+    const desc =row.querySelector('.li-desc').value;
+    const url  =row.querySelector('.li-url').value||'#';
+    const feat =i===0;
+    const cStyle=feat?`background:linear-gradient(135deg,${t.ac1},${t.ac2});`:'background:#fff;';
+    const tColor=feat?'color:#fff;':'';
+    const dColor=feat?'color:rgba(255,255,255,0.6);':'';
+    const iStyle=feat?'background:rgba(255,255,255,0.15);':`background:${t.bg};`;
+    return `<a class="card" href="${url}" target="_blank" style="${cStyle}">
+      <div class="cico" style="${iStyle}">${icon}</div>
+      <div class="cbody"><div class="ctitle" style="${tColor}">${title}</div>${desc?`<div class="cdesc" style="${dColor}">${desc}</div>`:''}</div>
+      <div class="carr" style="${feat?'color:rgba(255,255,255,0.4);':''}">↗</div>
+    </a>`;
+  }).join('');
+
+  return `<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>${name}</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:#ECEAF4;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:48px 24px 56px;font-family:'Noto Sans KR',sans-serif;}
+.phone{width:265px;background:#fff;border-radius:46px;padding:10px;border:9px solid ${t.dark};box-shadow:0 32px 80px rgba(0,0,0,0.2),0 8px 24px rgba(0,0,0,0.1);position:relative;animation:rise .6s cubic-bezier(.16,1,.3,1) both;}
+.notch-bar{background:${t.dark};height:28px;border-radius:20px 20px 0 0;display:flex;align-items:flex-end;justify-content:center;margin:-10px -10px 0;}
+.notch-cut{background:#fff;width:130px;height:24px;border-radius:0 0 20px 20px;}
+.screen{background:${t.bg};border-radius:4px;overflow:hidden;}
+.sbar{background:${t.bg};padding:5px 16px 3px;display:flex;align-items:center;justify-content:space-between;}
+.sbar-t{font-size:.6rem;font-weight:700;color:${t.dark};}
+.sbar-i{display:flex;gap:3px;align-items:center;}
+.content{max-height:580px;overflow-y:auto;padding-bottom:16px;scrollbar-width:none;}
+.content::-webkit-scrollbar{display:none;}
+.profile{padding:20px 0 14px;display:flex;flex-direction:column;align-items:center;background:${t.bg};}
+.avatar{width:72px;height:72px;border-radius:50%;border:3px solid #fff;box-shadow:0 4px 16px rgba(0,0,0,.15);margin-bottom:10px;overflow:hidden;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,${t.ac1},${t.ac2});}
+.pname{font-size:1rem;font-weight:700;color:${t.dark};margin-bottom:4px;}
+.pbio{font-size:.68rem;color:#666;line-height:1.55;text-align:center;padding:0 18px;font-weight:300;}
+.stats{display:flex;justify-content:center;gap:28px;padding:14px 0 12px;background:${t.bg};}
+.stat{text-align:center;}
+.stat-n{font-size:1rem;font-weight:700;color:${t.dark};}
+.stat-l{font-size:.5rem;letter-spacing:1.5px;text-transform:uppercase;color:#AAA;margin-top:2px;}
+.div{height:8px;background:${t.bg}; filter:brightness(0.94);}
+.icons{display:flex;justify-content:center;gap:12px;padding:14px 12px 10px;background:${t.bg};}
+.ic{display:flex;flex-direction:column;align-items:center;gap:3px;text-decoration:none;}
+.ic-c{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;overflow:hidden;}
+.ic-c svg{width:40px;height:40px;}
+.ic-l{font-size:.5rem;color:#AAA;white-space:nowrap;}
+.cards{padding:8px 10px 0;display:flex;flex-direction:column;gap:5px;background:${t.bg};}
+.card{display:flex;align-items:center;gap:8px;border-radius:12px;padding:10px 12px;text-decoration:none;color:${t.dark};box-shadow:0 1px 6px rgba(0,0,0,.08);}
+.cico{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.75rem;flex-shrink:0;}
+.cbody{flex:1;min-width:0;}
+.ctitle{font-size:.7rem;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.cdesc{font-size:.55rem;color:#AAA;margin-top:1px;}
+.carr{font-size:.6rem;color:#DDD;flex-shrink:0;}
+@keyframes rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+<div class="phone">
+<div class="notch-bar"><div class="notch-cut"></div></div>
+<div class="screen">
+<div class="sbar">
+<span class="sbar-t">9:41</span>
+<div class="sbar-i">
+<svg width="12" height="8" viewBox="0 0 12 8" fill="${t.dark}"><rect x="0" y="2" width="2" height="6" rx=".5"/><rect x="3" y="1" width="2" height="7" rx=".5"/><rect x="6" y="0" width="2" height="8" rx=".5"/><rect x="9" y="0" width="2" height="8" rx=".5" opacity=".25"/></svg>
+<svg width="20" height="8" viewBox="0 0 20 8" fill="none"><rect x=".5" y=".5" width="15" height="7" rx="1.5" stroke="${t.dark}" stroke-width="1"/><rect x="1.5" y="1.5" width="11" height="5" rx="1" fill="${t.dark}"/><rect x="16.5" y="2.5" width="2" height="3" rx=".5" fill="${t.dark}" opacity=".4"/></svg>
+</div>
+</div>
+<div class="content">
+<div class="profile"><div class="avatar">${avatarHTML}</div><div class="pname">${name}</div><div class="pbio">${bio}</div></div>
+<div class="stats"><div class="stat"><div class="stat-n">${s1n}</div><div class="stat-l">${s1l}</div></div><div class="stat"><div class="stat-n">${s2n}</div><div class="stat-l">${s2l}</div></div></div>
+<div class="div"></div>
+${iconsHTML?`<div class="icons">${iconsHTML}</div>`:''}
+<div class="cards">${cardsHTML}</div>
+</div>
+</div>
+</div>
+</body>
+</html>`;
+}
+
+document.getElementById('btnGenerate').addEventListener('click',()=>{
+  const html=buildHTML();
+  const blob=new Blob([html],{type:'text/html'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`linktree.html`;
+  a.click();
+  URL.revokeObjectURL(url);
+  document.getElementById('btnDownload').style.display='block';
+});
+document.getElementById('btnDownload').addEventListener('click',()=>{
+  document.getElementById('btnGenerate').click();
+});
+
+// ── INIT ──
+addLinkItem('🚀','링크 카드 제목','설명 입력','#');
+addLinkItem('🧭','두 번째 링크','','#');
+render();
+</script>
 </body>
 </html>
